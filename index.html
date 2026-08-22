@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RISC-V ISA Reference · Encoding / Behavior / Golden Model</title>
+<link rel="stylesheet" href="css/style.css?v=20240841">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">RV</span>
+    <div class="brand-text">
+      <strong>RISC-V ISA Reference</strong>
+      <small>Encoding · Assembly · Behavior diagram · Golden model</small>
+    </div>
+  </div>
+  <nav class="nav" id="nav">
+    <a href="#/" data-nav="overview">Overview</a>
+    <a href="#/list" data-nav="list">Instruction Summary</a>
+    <a href="#/enc" data-nav="enc">Encoding Space</a>
+    <a href="#/csr" data-nav="csr">System Registers</a>
+    <a href="#/priv" data-nav="priv">Protection Domains</a>
+  </nav>
+  <div class="top-search">
+    <input id="topSearch" type="search" placeholder="Search instruction (e.g. FMADD.S / ADD / vadd)…" autocomplete="off">
+  </div>
+</header>
+
+<main id="app" class="app"></main>
+
+<footer class="footer">
+  <p>RISC-V ISA reference — see the homepage "Reference specification" card for the exact document versions used.</p>
+</footer>
+
+<script src="data/instructions.js?v=20240841"></script>
+<script src="data/vector.js?v=20240841"></script>
+<script src="data/spike.js?v=20240841"></script>
+<script src="data/classes.js?v=20240841"></script>
+<script src="data/csr.js?v=20240841"></script>
+<script src="js/diagram.js?v=20240841"></script>
+<script src="js/app.js?v=20240841"></script>
+</body>
+</html>
