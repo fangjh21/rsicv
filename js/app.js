@@ -74,10 +74,44 @@
     return `<div class="regdiagram-32"><table class="regdiagram"><thead>${head}</thead><tbody>${f1}${f2}</tbody></table></div>`;
   }
   // regdiagram that shows only a subset of fields fixed; the rest show 'x' (don't-care)
+  function c16segments(cenc){
+    const tokens = String(cenc).trim().split(/\s+/).filter(t => t !== '|');
+    const segs = [];
+    for(const tok of tokens){
+      if(/^[01]+$/.test(tok)){ segs.push({fixed:tok, name:null, w:tok.length}); continue; }
+      let name = tok, w = 0;
+      const m = tok.match(/^([A-Za-z][A-Za-z0-9'_]*)(?:\[([^\]]+)\])?$/);
+      if(m){
+        name = m[1];
+        if(m[2]){
+          for(const r of m[2].split('|')){ const p = r.split(':'); w += (p.length===1) ? 1 : (parseInt(p[0],10)-parseInt(p[1],10)+1); }
+        } else {
+          w = {rd:5,rs1:5,rs2:5,"rd'":3,"rs1'":3,"rs2'":3,shamt:5}[name] || 0;
+        }
+      }
+      segs.push({fixed:null, name:tok, w});
+    }
+    return segs;
+  }
+  function c16regdiagram(cenc){
+    const segs = c16segments(cenc);
+    let head='<tr>'; for(let b=15;b>=0;b--) head+=`<td>${b}</td>`; head+='</tr>';
+    let f1='<tr class="firstrow">';
+    for(const s of segs){
+      if(s.fixed!=null){
+        for(let i=0;i<s.w;i++){ const c=(s.w===1)?'lr':(i===0?'l':(i===s.w-1?'r':'')); f1+=`<td class="${c}">${s.fixed[i]}</td>`; }
+      } else {
+        f1+=`<td colspan="${s.w}" class="lr">${esc(s.name)}</td>`;
+      }
+    }
+    f1+='</tr>';
+    return `<div class="regdiagram-16"><table class="regdiagram"><thead>${head}</thead><tbody>${f1}</tbody></table></div>`;
+  }
   function renderEncoding(inst){
     if(inst.bit16){
-      return `<div class="mono" style="font-size:13px;background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;letter-spacing:.3px">${esc(inst.cenc)}</div>
-      <div class="bit-legend">16-bit compressed instruction (MSB left, LSB right).</div>`;
+      return `${c16regdiagram(inst.cenc)}
+      <div class="mono" style="font-size:12px;color:var(--muted);margin-top:6px">${esc(inst.cenc)}</div>
+      <div class="bit-legend">16-bit compressed instruction: bits [15:13] = funct3, [1:0] = quadrant; operand fields shown in place.</div>`;
     }
     let layout = LAYOUTS[inst.type] || LAYOUTS.I;
     const v = inst.values||{};
