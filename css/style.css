@@ -14,6 +14,8 @@
 html,body{margin:0;padding:0}
 body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;-webkit-font-smoothing:antialiased}
 h1,h2,h3,h4,strong,b,th,.badge,.btn,.stat b,.nav a{font-weight:400}
+/* keep anchor-jump targets clear of the sticky top bar */
+h2,h3,h4{scroll-margin-top:76px}
 /* instruction + system-register names are bold and black */
 .mnem,.dec-leaf,.reg-name,.card h1 .mono,.csr-block .names{font-weight:700;color:var(--ink)}
 a{color:var(--accent);text-decoration:none}
