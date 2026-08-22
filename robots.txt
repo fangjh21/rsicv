@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://fangjh21.github.io/rsicv/sitemap.xml
