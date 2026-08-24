@@ -107,8 +107,8 @@
     f1+='</tr>';
     let f2='<tr class="secondrow">';
     segs.forEach((s, idx) => {
-      if(idx===0 && s.fixed!=null && s.w===3){ f2+=`<td colspan="3" class="droppedname">funct3</td>`; }
-      else if(idx===segs.length-1 && s.fixed!=null && s.w===2){ f2+=`<td colspan="2" class="droppedname">op</td>`; }
+      if(idx===0 && s.fixed!=null && s.w===3){ f2+=`<td colspan="3" class="droppedname fld">funct3</td>`; }
+      else if(idx===segs.length-1 && s.fixed!=null && s.w===2){ f2+=`<td colspan="2" class="droppedname fld">op</td>`; }
       else { f2+=`<td colspan="${s.w}"></td>`; }
     });
     f2+='</tr>';
