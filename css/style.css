@@ -103,7 +103,6 @@ td.asm{font-family:var(--mono);font-size:12px;white-space:nowrap}
 .regdiagram tbody td.l{border-left:2px solid var(--ink)}
 .regdiagram tbody td.r{border-right:2px solid var(--ink)}
 .regdiagram tbody td.lr{border-left:2px solid var(--ink);border-right:2px solid var(--ink);font-weight:700}
-.regdiagram tbody td.fld{text-align:left;padding-left:5px}
 .regdiagram tbody tr.secondrow td{border:none;border-bottom:1px solid var(--line)}
 .regdiagram tbody td.droppedname{font-size:8.5px;color:var(--accent);font-weight:700;letter-spacing:.3px}
 .regdiagram tbody td.x{color:var(--muted)}
