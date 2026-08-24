@@ -66,7 +66,7 @@
         f2+=`<td colspan="${w}" class="${named(label)?'droppedname':''}"${named(label)?` title="${esc(label)}"`:''}>${named(label)?esc(label):''}</td>`;
       } else {
         const nm=sob(label);
-        f1+=`<td colspan="${w}" class="lr">${esc(nm)}</td>`;
+        f1+=`<td colspan="${w}" class="lr fld">${esc(nm)}</td>`;
         f2+=`<td colspan="${w}"></td>`;
       }
     }
@@ -101,7 +101,7 @@
       if(s.fixed!=null){
         for(let i=0;i<s.w;i++){ const c=(s.w===1)?'lr':(i===0?'l':(i===s.w-1?'r':'')); f1+=`<td class="${c}">${s.fixed[i]}</td>`; }
       } else {
-        f1+=`<td colspan="${s.w}" class="lr" title="${esc(s.disp)}">${esc(s.disp)}</td>`;
+        f1+=`<td colspan="${s.w}" class="lr fld" title="${esc(s.disp)}">${esc(s.disp)}</td>`;
       }
     }
     f1+='</tr>';
