@@ -96,8 +96,8 @@ td.asm{font-family:var(--mono);font-size:12px;white-space:nowrap}
 
 /* ARM-style register diagram (bit map) */
 .regdiagram-32{overflow-x:auto;margin:6px 0}
-.regdiagram{border-collapse:collapse;font-family:var(--mono);font-size:10px;min-width:660px}
-.regdiagram-16 .regdiagram{min-width:320px}
+.regdiagram{border-collapse:collapse;font-family:var(--mono);font-size:10px;min-width:660px;table-layout:fixed;width:100%}
+.regdiagram-16 .regdiagram{min-width:320px;width:100%}
 .regdiagram thead td{border:none;font-size:8.5px;color:var(--muted);padding:2px 1px;text-align:center}
 .regdiagram tbody td{border:1px solid var(--line);text-align:center;padding:4px 1px;white-space:nowrap}
 .regdiagram tbody td.l{border-left:2px solid var(--ink)}
