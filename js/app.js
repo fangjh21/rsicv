@@ -105,7 +105,14 @@
       }
     }
     f1+='</tr>';
-    return `<div class="regdiagram-16"><table class="regdiagram"><thead>${head}</thead><tbody>${f1}</tbody></table></div>`;
+    let f2='<tr class="secondrow">';
+    segs.forEach((s, idx) => {
+      if(idx===0 && s.fixed!=null && s.w===3){ f2+=`<td colspan="3" class="droppedname">funct3</td>`; }
+      else if(idx===segs.length-1 && s.fixed!=null && s.w===2){ f2+=`<td colspan="2" class="droppedname">op</td>`; }
+      else { f2+=`<td colspan="${s.w}"></td>`; }
+    });
+    f2+='</tr>';
+    return `<div class="regdiagram-16"><table class="regdiagram"><thead>${head}</thead><tbody>${f1}${f2}</tbody></table></div>`;
   }
   function renderEncoding(inst){
     if(inst.bit16){
