@@ -78,18 +78,18 @@
     const tokens = String(cenc).trim().split(/\s+/).filter(t => t !== '|');
     const segs = [];
     for(const tok of tokens){
-      if(/^[01]+$/.test(tok)){ segs.push({fixed:tok, name:null, w:tok.length}); continue; }
-      let name = tok, w = 0;
+      if(/^[01]+$/.test(tok)){ segs.push({fixed:tok, disp:null, w:tok.length}); continue; }
+      let base = tok, w = 0;
       const m = tok.match(/^([A-Za-z][A-Za-z0-9'_]*)(?:\[([^\]]+)\])?$/);
       if(m){
-        name = m[1];
+        base = m[1];
         if(m[2]){
           for(const r of m[2].split('|')){ const p = r.split(':'); w += (p.length===1) ? 1 : (parseInt(p[0],10)-parseInt(p[1],10)+1); }
         } else {
-          w = {rd:5,rs1:5,rs2:5,"rd'":3,"rs1'":3,"rs2'":3,shamt:5}[name] || 0;
+          w = {rd:5,rs1:5,rs2:5,"rd'":3,"rs1'":3,"rs2'":3,shamt:5}[base] || 0;
         }
       }
-      segs.push({fixed:null, name:tok, w});
+      segs.push({fixed:null, disp:base, w});
     }
     return segs;
   }
@@ -101,7 +101,7 @@
       if(s.fixed!=null){
         for(let i=0;i<s.w;i++){ const c=(s.w===1)?'lr':(i===0?'l':(i===s.w-1?'r':'')); f1+=`<td class="${c}">${s.fixed[i]}</td>`; }
       } else {
-        f1+=`<td colspan="${s.w}" class="lr">${esc(s.name)}</td>`;
+        f1+=`<td colspan="${s.w}" class="lr" title="${esc(s.disp)}">${esc(s.disp)}</td>`;
       }
     }
     f1+='</tr>';
@@ -111,7 +111,7 @@
     if(inst.bit16){
       return `${c16regdiagram(inst.cenc)}
       <div class="mono" style="font-size:12px;color:var(--muted);margin-top:6px">${esc(inst.cenc)}</div>
-      <div class="bit-legend">16-bit compressed instruction: bits [15:13] = funct3, [1:0] = quadrant; operand fields shown in place.</div>`;
+      <div class="bit-legend">16-bit compressed instruction: bits [15:13] = funct3, [1:0] = quadrant. Operand fields are named by field; the exact immediate-bit mapping (e.g. imm[5]) appears in the text above — immediates are scrambled across the 16-bit word, so the header number is the bit position, not the immediate index.</div>`;
     }
     let layout = LAYOUTS[inst.type] || LAYOUTS.I;
     const v = inst.values||{};
