@@ -104,7 +104,6 @@ td.asm{font-family:var(--mono);font-size:12px;white-space:nowrap}
 .regdiagram tbody td.r{border-right:2px solid var(--ink)}
 .regdiagram tbody td.lr{border-left:2px solid var(--ink);border-right:2px solid var(--ink);font-weight:700}
 .regdiagram tbody tr.secondrow td{border:none;border-bottom:1px solid var(--line)}
-.regdiagram tbody tr.cencrow td{border:none;padding:3px 1px 0;font-size:11px;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden}
 .regdiagram tbody td.droppedname{font-size:8.5px;color:var(--accent);font-weight:700;letter-spacing:.3px}
 .regdiagram tbody td.x{color:var(--muted)}
 .regdiagram tbody td.x.lr{border-style:dashed}
