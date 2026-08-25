@@ -447,7 +447,7 @@
     return value;
   }
   /* ---------- decode a word -> instruction ---------- */
-  const C_LIST = I.filter(i => i.bit16);
+  const C_LIST = R.INSTRUCTIONS.filter(i => i.bit16);
   function extractBits(w,hi,lo){ return ((w>>>lo)&((1<<(hi-lo+1))-1)).toString(2).padStart(hi-lo+1,'0'); }
   function cMatch(ci, word){
     let segs; try{ segs = c16segments(ci.cenc); }catch(e){ return false; }
