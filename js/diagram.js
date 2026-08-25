@@ -9,7 +9,7 @@ window.RISCV = window.RISCV || {};
   const VLEN = 128, LMUL = 2, GBITS = VLEN*LMUL;
   const COLORS = {
     src:{fill:"#ffffff",stroke:"#24292f",text:"#24292f"},
-    dst:{fill:"#0969da",stroke:"#0969da",text:"#ffffff"},
+    dst:{fill:"#218bff",stroke:"#218bff",text:"#ffffff"},
     mask:{fill:"#eef6ff",stroke:"#0550ae",text:"#0550ae"},
     mem:{fill:"#ffffff",stroke:"#57606a",text:"#57606a"},
   };
