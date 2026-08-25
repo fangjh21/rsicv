@@ -403,7 +403,7 @@ window.RISCV = window.RISCV || {};
     "vle8.v":"vle8", "vse16.v":"vse16", "vlse32.v":"vlse32", "vluxei16.v":"vluxei16",
     "vfmacc.vv":"vfmacc", "vredsum.vs":"vredsum",
   };
-  V.forEach(v => { if(DMAP[v.name]) v.diagram = DMAP[v.name]; });
+  V.forEach(v => { v.diagram = DMAP[v.name] || "auto"; });
 
   window.RISCV.VECTOR = V;
   window.RISCV.INSTRUCTIONS = (window.RISCV.INSTRUCTIONS || []).concat(V);
