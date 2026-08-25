@@ -398,7 +398,11 @@ window.RISCV = window.RISCV || {};
     "require_vector_vs;\nVI_VV_LOOP { vd = clmulh(vs2, vs1); }");
 
   // attach element/bit-width behavior diagrams
-  const DMAP = {"vadd.vv":"vadd", "vwadd.vv":"vwadd", "vnsrl.wi":"vnsrl"};
+  const DMAP = {
+    "vadd.vv":"vadd", "vwadd.vv":"vwadd", "vnsrl.wi":"vnsrl",
+    "vle8.v":"vle8", "vse16.v":"vse16", "vlse32.v":"vlse32", "vluxei16.v":"vluxei16",
+    "vfmacc.vv":"vfmacc", "vredsum.vs":"vredsum",
+  };
   V.forEach(v => { if(DMAP[v.name]) v.diagram = DMAP[v.name]; });
 
   window.RISCV.VECTOR = V;
