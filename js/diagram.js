@@ -40,7 +40,7 @@ window.RISCV = window.RISCV || {};
       s += `<text x="${x+2}" y="${13+i*13.5}" font-size="${i===0?'10.5':'10'}" fill="${i===0?'#57606a':'#8b949e'}" font-family="${SANS}">${esc(line)}</text>`;
     });
     // labels: register size at top, then MSB of each element, then 0
-    const bounds = spec.single ? [sew, 0] : (()=>{
+    const bounds = spec.single ? [sew-1, 0] : (()=>{
       const b = [GBITS];
       for(let k=1;k<nShow;k++) b.push(GBITS - 1 - k*sew);
       if(nShow === nFull) b.push(0);
