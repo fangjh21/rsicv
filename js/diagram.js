@@ -25,10 +25,14 @@ window.RISCV = window.RISCV || {};
     const nShow = Math.min(nFull, CAP);
     const W = 396, H = 30, gapA = 40;
     const ctxH = 22, labH = 16;
-    const svgW = W + 16;
-    const x = 8;
+    const M = 24;                       // symmetric side margin → strip centered in svg
+    const svgW = W + 2*M;
+    const x = M;
     const ew = W / nShow;
-    const totalH = ctxH + labH + 24 + regs.length*(H+gapA) - gapA + 8;
+    const y0 = ctxH + labH + 30;
+    const stripBottom = y0 + regs.length*(H+gapA) - gapA;
+    const legendY = stripBottom + 20;
+    const totalH = spec.applyMask ? legendY + 8 : stripBottom + 8;
     let s = `<svg width="${svgW}" height="${totalH}" viewBox="0 0 ${svgW} ${totalH}" xmlns="http://www.w3.org/2000/svg" role="img">`;
     if(spec.ctx) s += `<text x="${x+2}" y="13" font-size="10.5" fill="#57606a" font-family="${SANS}">${esc(spec.ctx)}</text>`;
     // labels: register size at top, then MSB of each element, then 0
@@ -40,7 +44,7 @@ window.RISCV = window.RISCV || {};
       const anchor = k===0 ? 'start' : (k===nShow ? 'end' : 'middle');
       s += `<text x="${bx}" y="${ctxH+labH-3}" font-size="9.5" fill="#57606a" font-family="${MONO}" text-anchor="${anchor}">${b}</text>`;
     });
-    let y = ctxH + labH + 30;
+    let y = y0;
     regs.forEach((r,i)=>{
       const c = COLORS[r.cls || "src"];
       // name + sub ABOVE the strip (not on the cells)
@@ -66,7 +70,7 @@ window.RISCV = window.RISCV || {};
       }
       y += H + gapA;
     });
-    if(spec.applyMask) s += `<text x="${x+2}" y="${totalH-8}" font-size="9.5" fill="#57606a" font-family="${SANS}">grey cell = element masked off (v0.t = 0 · vm = 0); blue = result written</text>`;
+    if(spec.applyMask) s += `<text x="${x+2}" y="${legendY}" font-size="9.5" fill="#57606a" font-family="${SANS}">grey cell = element masked off (v0.t = 0 · vm = 0); blue = result written</text>`;
     s += `</svg>`;
     container.innerHTML = s;
   }

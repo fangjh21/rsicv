@@ -46,6 +46,7 @@ h1.page-title{font-size:23px;margin:0 0 4px}
 .card{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:18px}
 .card h2{font-size:16px;margin:0 0 10px;display:flex;align-items:center;gap:9px}
 .card h2 .idx{width:24px;height:24px;border-radius:6px;background:var(--accent-soft);color:var(--accent);display:inline-grid;place-items:center;font-size:12px;flex:none}
+.diagram svg{display:block;margin:0 auto;max-width:100%;height:auto}
 .grid{display:grid;gap:16px}
 .grid.cols-2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
 .grid.cols-3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
