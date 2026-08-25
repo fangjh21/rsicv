@@ -9,7 +9,7 @@ window.RISCV = window.RISCV || {};
   const VLEN = 128, LMUL = 2, GBITS = VLEN*LMUL;
   const COLORS = {
     src:{fill:"#ffffff",stroke:"#24292f",text:"#24292f"},
-    dst:{fill:"#24292f",stroke:"#24292f",text:"#ffffff"},
+    dst:{fill:"#0969da",stroke:"#0969da",text:"#ffffff"},
     mask:{fill:"#eef6ff",stroke:"#0550ae",text:"#0550ae"},
     mem:{fill:"#ffffff",stroke:"#57606a",text:"#57606a"},
   };
@@ -40,31 +40,33 @@ window.RISCV = window.RISCV || {};
       const anchor = k===0 ? 'start' : (k===nShow ? 'end' : 'middle');
       s += `<text x="${bx}" y="${ctxH+labH-3}" font-size="9.5" fill="#57606a" font-family="${MONO}" text-anchor="${anchor}">${b}</text>`;
     });
-    let y = ctxH + labH + 24;
+    let y = ctxH + labH + 30;
     regs.forEach((r,i)=>{
       const c = COLORS[r.cls || "src"];
+      // name + sub ABOVE the strip (not on the cells)
+      s += `<text x="${x}" y="${y-6}" font-size="11" font-weight="600" fill="${c.text}" font-family="${MONO}">${esc(r.label)}</text>`;
+      if(r.sub) s += `<text x="${x+W}" y="${y-6}" font-size="10" fill="#6e7781" font-family="${SANS}" text-anchor="end">${esc(r.sub)}</text>`;
+      // strip
+      s += `<rect x="${x}" y="${y}" width="${W}" height="${H}" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.4"/>`;
       if(r.maskrow){
-        s += `<text x="${x+2}" y="${y-7}" font-size="10.5" font-weight="600" fill="#0550ae" font-family="${SANS}">${esc(r.label)}${r.sub?` · ${esc(r.sub)}`:''}</text>`;
-        s += `<rect x="${x}" y="${y}" width="${W}" height="${H}" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.4"/>`;
         MASK.slice(0,nShow).forEach((b,k)=>{
           const bx = x+0.5+k*ew, bw = ew-1;
           s += `<rect x="${bx}" y="${y+0.5}" width="${bw}" height="${H-1}" fill="${b?'#0550ae':'#ffffff'}" stroke="#0550ae" stroke-width="0.6"/>`;
           s += `<text x="${bx+bw/2}" y="${y+H/2+3.5}" text-anchor="middle" font-size="9" fill="${b?'#ffffff':'#0550ae'}" font-family="${MONO}">${b}</text>`;
         });
       } else {
-        s += `<rect x="${x}" y="${y}" width="${W}" height="${H}" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.4"/>`;
-        s += `<text x="${x+8}" y="${y+H/2+4}" font-size="12" font-weight="600" fill="${c.text}" font-family="${MONO}">${esc(r.label)}</text>`;
-        if(r.sub) s += `<text x="${x+W-8}" y="${y+H/2+3}" font-size="10" fill="#6e7781" font-family="${SANS}" text-anchor="end">${esc(r.sub)}</text>`;
-        for(let k=1;k<nShow;k++) s += `<line x1="${x+k*ew}" y1="${y}" x2="${x+k*ew}" y2="${y+H}" stroke="${r.cls==='dst'?'#9aa2ad':c.stroke}" stroke-opacity="${r.cls==='dst'?'0.65':'0.35'}" stroke-width="1"/>`;
-        if(spec.applyMask) MASK.slice(0,nShow).forEach((b,k)=>{ if(!b) s += `<rect x="${x+k*ew}" y="${y}" width="${ew}" height="${H}" fill="${r.cls==='dst'?'#1c2128':'#d8dee4'}" fill-opacity="0.85"/>`; });
+        // masked-off overlay first, then division lines on top
+        if(spec.applyMask) MASK.slice(0,nShow).forEach((b,k)=>{ if(!b) s += `<rect x="${x+k*ew+0.5}" y="${y+0.5}" width="${ew-1}" height="${H-1}" fill="${r.cls==='dst'?'#d0d7de':'#d8dee4'}" fill-opacity="0.9"/>`; });
+        for(let k=1;k<nShow;k++) s += `<line x1="${x+k*ew}" y1="${y}" x2="${x+k*ew}" y2="${y+H}" stroke="${r.cls==='dst'?'#ffffff':c.stroke}" stroke-opacity="${r.cls==='dst'?'0.4':'0.35'}" stroke-width="1"/>`;
       }
-      if(nFull > nShow && !r.maskrow) s += `<text x="${x+W-4}" y="${y+H-5}" font-size="9" fill="${c.text}" fill-opacity="0.5" font-family="${SANS}" text-anchor="end">… ×${nFull}</text>`;
+      if(nFull > nShow && !r.maskrow) s += `<text x="${x+W}" y="${y+H-4}" font-size="9" fill="${c.text}" fill-opacity="0.5" font-family="${SANS}" text-anchor="end">… ×${nFull}</text>`;
       if(i < ops.length){
-        const oy = y + H + 15;
+        const oy = y + H + 14;
         s += `<text x="${x+W/2}" y="${oy}" text-anchor="middle" font-size="17" fill="#57606a" font-family="${SANS}">${esc(ops[i])}</text>`;
       }
       y += H + gapA;
     });
+    if(spec.applyMask) s += `<text x="${x+2}" y="${totalH-8}" font-size="9.5" fill="#57606a" font-family="${SANS}">grey cell = element masked off (v0.t = 0 · vm = 0); blue = result written</text>`;
     s += `</svg>`;
     container.innerHTML = s;
   }
