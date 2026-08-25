@@ -21,28 +21,35 @@ window.RISCV = window.RISCV || {};
   function vflow(container, spec){
     const regs = spec.regs, ops = spec.ops || [];
     const sew = spec.sew || 32;
-    const nFull = Math.max(1, Math.floor(GBITS/sew));
-    const nShow = Math.min(nFull, CAP);
+    const nFull = spec.single ? 1 : Math.max(1, Math.floor(GBITS/sew));
+    const nShow = spec.single ? 1 : Math.min(nFull, CAP);
     const W = 396, H = 30, gapA = 40;
-    const ctxH = 22, labH = 16;
     const M = 24;                       // symmetric side margin → strip centered in svg
     const svgW = W + 2*M;
     const x = M;
     const ew = W / nShow;
-    const y0 = ctxH + labH + 30;
+    const ctxLines = Array.isArray(spec.ctx) ? spec.ctx : [spec.ctx];
+    const labelY = 13 + ctxLines.length*13.5 + 4;   // bit labels below ctx lines
+    const y0 = labelY + 33;
     const stripBottom = y0 + regs.length*(H+gapA) - gapA;
     const legendY = stripBottom + 20;
     const totalH = spec.applyMask ? legendY + 8 : stripBottom + 8;
     let s = `<svg width="${svgW}" height="${totalH}" viewBox="0 0 ${svgW} ${totalH}" xmlns="http://www.w3.org/2000/svg" role="img">`;
-    if(spec.ctx) s += `<text x="${x+2}" y="13" font-size="10.5" fill="#57606a" font-family="${SANS}">${esc(spec.ctx)}</text>`;
+    ctxLines.forEach((line,i)=>{
+      if(!line) return;
+      s += `<text x="${x+2}" y="${13+i*13.5}" font-size="${i===0?'10.5':'10'}" fill="${i===0?'#57606a':'#8b949e'}" font-family="${SANS}">${esc(line)}</text>`;
+    });
     // labels: register size at top, then MSB of each element, then 0
-    const bounds = [GBITS];
-    for(let k=1;k<nShow;k++) bounds.push(GBITS - 1 - k*sew);
-    if(nShow === nFull) bounds.push(0);
+    const bounds = spec.single ? [sew, 0] : (()=>{
+      const b = [GBITS];
+      for(let k=1;k<nShow;k++) b.push(GBITS - 1 - k*sew);
+      if(nShow === nFull) b.push(0);
+      return b;
+    })();
     bounds.forEach((b,k)=>{
       const bx = x + k*ew;
       const anchor = k===0 ? 'start' : (k===nShow ? 'end' : 'middle');
-      s += `<text x="${bx}" y="${ctxH+labH-3}" font-size="9.5" fill="#57606a" font-family="${MONO}" text-anchor="${anchor}">${b}</text>`;
+      s += `<text x="${bx}" y="${labelY}" font-size="9.5" fill="#57606a" font-family="${MONO}" text-anchor="${anchor}">${b}</text>`;
     });
     let y = y0;
     regs.forEach((r,i)=>{
@@ -76,50 +83,50 @@ window.RISCV = window.RISCV || {};
   }
 
   const grp = (n,e) => `${n}×${e}b`;
-  const ctxS = (name, extra) => `VLEN=${VLEN} · LMUL=${LMUL} · ${name}${extra?` · ${extra}`:""}`;
+  const ctxS = (name) => [name, `VLEN=${VLEN} · LMUL=${LMUL} → each strip = a register group = ${GBITS} bits · masked with v0.t (vm=0)`];
 
   R.diagram = {
     render(container, inst){
       const key = inst.diagram;
       if(key === "fmadd"){ vflow(container, {
-        ctx: "FMADD.S · scalar 32-bit FP",
+        ctx: "FMADD.S · fused scalar FP multiply-add: f[rd] = f[rs1] × f[rs2] + f[rs3]",
         regs:[{label:"f[rs1]", sub:"32b"}, {label:"f[rs2]", sub:"32b"},
               {label:"f[rs3]", sub:"32b"}, {label:"f[rd]", sub:"result", cls:"dst"}],
-        ops:["+","×","="],
+        ops:["×","+","="], sew:32, single:true,
       }); return; }
       const fn = this[key];
       if(fn) return fn.call(this, container, inst);
       container.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:10px">Behavior diagram not generated yet.</div>`;
     },
     vadd(container){ vflow(container, {
-      ctx: ctxS("vadd.vv · SEW=32 → 8 elements · vm=0"),
+      ctx: ctxS("vadd.vv · element-wise add of 8 × 32b"),
       regs:[{label:"vs2", sub:grp(8,32)}, {label:"vs1", sub:grp(8,32)},
             {label:"v0.t", sub:"1 bit/elem · vm=0", cls:"mask", maskrow:true},
             {label:"vd", sub:grp(8,32), cls:"dst"}],
       ops:["+","","="], sew:32, applyMask:true,
     }); },
     vwadd(container){ vflow(container, {
-      ctx: ctxS("vwadd.vv · widening 32b → 64b (2·LMUL) · vm=0"),
+      ctx: ctxS("vwadd.vv · widening add: 32b + 32b → 64b"),
       regs:[{label:"vs2", sub:grp(8,32)}, {label:"vs1", sub:grp(8,32)},
             {label:"v0.t", sub:"1 bit/elem · vm=0", cls:"mask", maskrow:true},
             {label:"vd", sub:"4×64b · 2·LMUL", cls:"dst"}],
       ops:["+","","="], sew:64, applyMask:true,
     }); },
     vnsrl(container){ vflow(container, {
-      ctx: ctxS("vnsrl.wi · narrowing 64b → 32b · vm=0"),
+      ctx: ctxS("vnsrl.wi · narrowing shift: 64b → 32b"),
       regs:[{label:"vs2", sub:"4×64b · 2·LMUL"}, {label:"v0.t", sub:"1 bit/elem · vm=0", cls:"mask", maskrow:true},
             {label:"vd", sub:grp(8,32), cls:"dst"}],
       ops:["≫","="], sew:32, applyMask:true,
     }); },
     vfmacc(container){ vflow(container, {
-      ctx: ctxS("vfmacc.vv · FP multiply-accumulate · SEW=32 · vm=0"),
+      ctx: ctxS("vfmacc.vv · FP multiply-accumulate: vs1 × vs2 + vd"),
       regs:[{label:"vs1", sub:grp(8,32)}, {label:"vs2", sub:grp(8,32)},
             {label:"vd", sub:"acc"}, {label:"v0.t", sub:"1 bit/elem · vm=0", cls:"mask", maskrow:true},
             {label:"vd = vs1·vs2 + vd", sub:grp(8,32), cls:"dst"}],
       ops:["×","+","","="], sew:32, applyMask:true,
     }); },
     vredsum(container){ vflow(container, {
-      ctx: ctxS("vredsum.vs · reduce → scalar · vm=0"),
+      ctx: ctxS("vredsum.vs · reduce all elements into one scalar"),
       regs:[{label:"vs2[0..vl-1]", sub:grp(8,32)}, {label:"v0.t", sub:"1 bit/elem · vm=0", cls:"mask", maskrow:true},
             {label:"vs1[0]", sub:"scalar acc"}, {label:"vd[0]", sub:"scalar result", cls:"dst"}],
       ops:["Σ","","="], sew:32, applyMask:true,
@@ -127,8 +134,11 @@ window.RISCV = window.RISCV || {};
     vl(container, e, kind){
       const mem = kind==="unit" ? "mem[base+i]" : kind==="strided" ? "mem[base+i·stride]" : "mem[base+vs2[i]]";
       const N = Math.floor(GBITS/e);
+      const op = kind==="unit" ? `vle${e}.v · unit-stride load: ${N} × ${e}b elements`
+               : kind==="strided" ? `vlse${e}.v · strided load (stride = rs2): ${N} × ${e}b elements`
+               : `vluxei${e}.v · indexed load (index = vs2): ${N} × ${e}b elements`;
       vflow(container, {
-        ctx: ctxS(kind==="unit" ? `${e}-bit unit load` : kind==="strided" ? `${e}-bit strided load (stride=rs2)` : `${e}-bit indexed load (idx=vs2)`, "vm=0"),
+        ctx: ctxS(op),
         regs:[{label:mem, sub:`${N}×${e}b elements`, cls:"mem"}, {label:"v0.t", sub:"1 bit/elem · vm=0", cls:"mask", maskrow:true},
               {label:"vd", sub:grp(N,e), cls:"dst"}],
         ops:["→",""], sew:+(e), applyMask:true,
@@ -138,7 +148,7 @@ window.RISCV = window.RISCV || {};
     vlse32(container){ this.vl(container,"32","strided"); },
     vluxei16(container){ this.vl(container,"16","indexed"); },
     vse16(container){ vflow(container, {
-      ctx: ctxS("vse16.v · unit-stride 16-bit store · vm=0"),
+      ctx: ctxS("vse16.v · unit-stride store: 16 × 16b elements"),
       regs:[{label:"vs3", sub:grp(16,16)}, {label:"v0.t", sub:"1 bit/elem · vm=0", cls:"mask", maskrow:true},
             {label:"mem[base+i]", sub:"×16 elements", cls:"mem"}],
       ops:["","→"], sew:16, applyMask:true,
