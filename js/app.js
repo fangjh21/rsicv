@@ -446,6 +446,72 @@
     if(field==='vm') return {"0":"masked (uses v0)","1":"unmasked"}[value] || value;
     return value;
   }
+  /* ---------- decode a word -> instruction ---------- */
+  const C_LIST = I.filter(i => i.bit16);
+  function extractBits(w,hi,lo){ return ((w>>>lo)&((1<<(hi-lo+1))-1)).toString(2).padStart(hi-lo+1,'0'); }
+  function cMatch(ci, word){
+    let segs; try{ segs = c16segments(ci.cenc); }catch(e){ return false; }
+    let pos = 15;
+    for(const s of segs){
+      if(s.fixed != null){
+        for(let i=0;i<s.w;i++){ if(((word >>> (pos-i)) & 1) !== Number(s.fixed[i])) return false; }
+      }
+      pos -= s.w;
+    }
+    return true;
+  }
+  function decodeWord16(word){
+    const f3 = extractBits(word,15,13);
+    const op = extractBits(word,1,0);
+    const steps = [{field:'funct3[15:13]', val:f3, meaning:'C-extension funct3'},
+                   {field:'op[1:0]', val:op, meaning:'C quadrant (10 = base instr in 32-bit space)'}];
+    const score = ci => { let n=0; try{ for(const sg of c16segments(ci.cenc)) if(sg.fixed!=null) n+=sg.w; }catch(e){} return n; };
+    return {steps, matched: C_LIST.filter(ci => cMatch(ci, word)).sort((a,b)=>score(b)-score(a))};
+  }
+  function decodeWord32(word){
+    const op = extractBits(word,6,0);
+    const meta = R.OPCODE_MAP.find(m => m.op === op);
+    const fields = DECODE[op] || [];
+    const steps = [{field:'opcode[6:0]', val:op, meaning: meta ? meta.nm : 'reserved / custom'}];
+    if(!meta) return {steps, matched:[]};
+    let matched = (byOp[op] || []).slice();
+    for(const f of fields){
+      const r = FIELD_BITS[f];
+      const v = extractBits(word, r[0], r[1]);
+      steps.push({field:fieldLabel(f), val:v, meaning:valLabel(f,v,op)});
+      matched = matched.filter(i => i.values[f] === undefined || i.values[f] === v);
+    }
+    return {steps, matched};
+  }
+  function decodeWord(input){
+    let s = String(input||'').trim();
+    if(!s) return null;
+    let hex = null;
+    if(/^[01]+$/.test(s)){
+      const width = s.length<=16 ? 16 : 32;
+      hex = parseInt(s.slice(0,width), 2).toString(16).padStart(width/4,'0');
+    } else {
+      hex = s.replace(/^0x/i,'').replace(/[^0-9a-fA-F]/g,'');
+    }
+    if(!/^[0-9a-fA-F]{1,8}$/.test(hex)) return null;
+    const width = hex.length<=4 ? 16 : 32;
+    const word = parseInt(hex,16);
+    const r = width===16 ? decodeWord16(word) : decodeWord32(word);
+    return {width, hex:hex.toUpperCase(), steps:r.steps, matched:r.matched};
+  }
+  function renderDecResult(d){
+    const box = document.getElementById('decResult');
+    if(!box) return;
+    if(!d){ box.innerHTML = '<div style="color:var(--muted);font-size:13px;margin-top:8px">Enter a RISC-V encoding: hex (0x00f08033) or binary — 32-bit base or 16-bit compressed.</div>'; return; }
+    const steps = d.steps.map(s => `<div style="margin:4px 0"><code style="background:var(--soft);padding:1px 6px;border-radius:4px">${esc(s.field)}</code> = <b style="font-family:var(--mono)">${esc(s.val)}</b> <span style="color:var(--muted)">${esc(s.meaning)}</span></div>`).join('');
+    const m = d.matched;
+    const links = m.length ? m.map(n => `<a href="#/inst/${encodeURIComponent(n.name)}">${esc(n.name)}</a>`).join(', ') : '<span style="color:var(--muted)">no standard instruction (reserved / custom encoding)</span>';
+    box.innerHTML = `<div style="margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--soft)">
+      <div style="margin-bottom:4px"><b>Decoded ${d.width}-bit word</b> <code style="margin-left:6px">0x${d.hex}</code></div>
+      ${steps}
+      <div style="margin-top:6px"><b>Matched instruction:</b> ${links}</div>
+    </div>`;
+  }
   function renderEncSpace(){
     const leaf = i => `<a href="#/inst/${encodeURIComponent(i.name)}">${esc(i.name)}</a>`;
     const ilist = ins => ins.map(leaf).join(', ');
@@ -467,6 +533,15 @@
     });
     let html = `<h1 class="page-title">Encoding Space — RISC-V instruction set encoding</h1>
     <p class="page-sub">Recursive decode: each level fixes a field (shown 0/1 in the diagram above the table), names the next decode field, and the table lists the sub-groups — down to the instruction.</p>
+    <div class="card" style="margin:10px 0 18px">
+      <h2><span class="idx">&#9637;</span>Decode an instruction word</h2>
+      <p style="margin:0 0 8px;color:var(--muted);font-size:13px">Enter a RISC-V instruction encoding — hex (e.g. <code>0x00f08033</code>) or binary — for 32-bit base instructions or 16-bit compressed (C). It is decoded field-by-field down to the instruction.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="decInput" type="text" placeholder="e.g. 0x00f08033" autocomplete="off" style="flex:1;min-width:220px;padding:8px 10px;font-family:var(--mono);border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)">
+        <button id="decBtn" class="btn">Decode</button>
+      </div>
+      <div id="decResult"></div>
+    </div>
     <h2 class="classheading" id="top">RISC-V instruction set encoding</h2>
     ${encReg([["",31,7],["opcode",6,0]], {}, "opcode")}
     ${encTable("opcode", topRows)}`;
@@ -503,6 +578,13 @@ ${encTable(f, g.map(([v,ins2])=>{
       html += node(op, meta, ins, fields, {opcode:op}, 0, `enc-${op}`, `${op} — ${esc(meta.nm)} <span class="opbin">(${ins.length})</span>`);
     }
     app.innerHTML = html;
+    const decInput = document.getElementById('decInput');
+    const decBtn = document.getElementById('decBtn');
+    if(decInput && decBtn){
+      const doDec = () => { const r = decodeWord(decInput.value); renderDecResult(r); };
+      decBtn.addEventListener('click', doDec);
+      decInput.addEventListener('keydown', e => { if(e.key==='Enter') doDec(); });
+    }
   }
 
   /* ---------- protection domains ---------- */
