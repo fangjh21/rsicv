@@ -112,15 +112,12 @@
       else { f2+=`<td colspan="${s.w}"></td>`; }
     });
     f2+='</tr>';
-    let f3='<tr class="cencrow">';
-    for(const s of segs){ f3+=`<td colspan="${s.w}">${esc(s.raw)}</td>`; }
-    f3+='</tr>';
-    return `<div class="regdiagram-16"><table class="regdiagram"><thead>${head}</thead><tbody>${f1}${f2}${f3}</tbody></table></div>`;
+    return `<div class="regdiagram-16"><table class="regdiagram"><thead>${head}</thead><tbody>${f1}${f2}</tbody></table></div>`;
   }
   function renderEncoding(inst){
     if(inst.bit16){
       return `${c16regdiagram(inst.cenc)}
-      <div class="bit-legend">16-bit compressed instruction: bits [15:13] = funct3, [1:0] = quadrant. Operand fields are named by field; the exact immediate-bit mapping (e.g. imm[5]) appears in the text above — immediates are scrambled across the 16-bit word, so the header number is the bit position, not the immediate index.</div>`;
+      <div class="bit-legend">16-bit compressed instruction: bits [15:13] = funct3, [1:0] = quadrant. Operand fields are centered over their bit ranges; the header number is the bit position. Immediates are scrambled across the 16-bit word (the field name without bit indices names the field).</div>`;
     }
     let layout = LAYOUTS[inst.type] || LAYOUTS.I;
     const v = inst.values||{};
