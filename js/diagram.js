@@ -31,7 +31,10 @@ window.RISCV = window.RISCV || {};
     const totalH = ctxH + labH + 24 + regs.length*(H+gapA) - gapA + 8;
     let s = `<svg width="${svgW}" height="${totalH}" viewBox="0 0 ${svgW} ${totalH}" xmlns="http://www.w3.org/2000/svg" role="img">`;
     if(spec.ctx) s += `<text x="${x+2}" y="13" font-size="10.5" fill="#57606a" font-family="${SANS}">${esc(spec.ctx)}</text>`;
-    const bounds = [GBITS]; for(let k=1;k<nShow;k++) bounds.push(GBITS - k*sew); bounds.push(0);
+    // labels: register size at top, then MSB of each element, then 0
+    const bounds = [GBITS];
+    for(let k=1;k<nShow;k++) bounds.push(GBITS - 1 - k*sew);
+    if(nShow === nFull) bounds.push(0);
     bounds.forEach((b,k)=>{
       const bx = x + k*ew;
       const anchor = k===0 ? 'start' : (k===nShow ? 'end' : 'middle');
@@ -55,6 +58,7 @@ window.RISCV = window.RISCV || {};
         for(let k=1;k<nShow;k++) s += `<line x1="${x+k*ew}" y1="${y}" x2="${x+k*ew}" y2="${y+H}" stroke="${r.cls==='dst'?'#9aa2ad':c.stroke}" stroke-opacity="${r.cls==='dst'?'0.65':'0.35'}" stroke-width="1"/>`;
         if(spec.applyMask) MASK.slice(0,nShow).forEach((b,k)=>{ if(!b) s += `<rect x="${x+k*ew}" y="${y}" width="${ew}" height="${H}" fill="${r.cls==='dst'?'#1c2128':'#d8dee4'}" fill-opacity="0.85"/>`; });
       }
+      if(nFull > nShow && !r.maskrow) s += `<text x="${x+W-4}" y="${y+H-5}" font-size="9" fill="${c.text}" fill-opacity="0.5" font-family="${SANS}" text-anchor="end">… ×${nFull}</text>`;
       if(i < ops.length){
         const oy = y + H + 15;
         s += `<text x="${x+W/2}" y="${oy}" text-anchor="middle" font-size="17" fill="#57606a" font-family="${SANS}">${esc(ops[i])}</text>`;
