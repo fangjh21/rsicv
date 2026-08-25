@@ -1,107 +1,113 @@
-/* Instruction behavior diagram: element-level bit-width flow.
- * Shows which source element (and its bit width) combines with which, and the
- * resulting element (and its bit width) — nothing else.
+/* Instruction behavior diagram: vertical element-flow (operands stacked with
+ * operators between, bit-range label on top) — matches the reference style.
  */
 window.RISCV = window.RISCV || {};
 (function(){
   const R = window.RISCV;
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-
   const COLORS = {
     src:{fill:"#ffffff",stroke:"#24292f",text:"#24292f"},
     dst:{fill:"#24292f",stroke:"#24292f",text:"#ffffff"},
-    calc:{fill:"#ffffff",stroke:"#24292f",text:"#24292f"},
     key:{fill:"#ffffff",stroke:"#0550ae",text:"#0550ae"},
     note:{fill:"#ffffff",stroke:"#24292f",text:"#24292f"},
   };
+  const MONO = "ui-monospace,Menlo,Consolas,monospace";
+  const SANS = "ui-sans-serif,system-ui,sans-serif";
 
-  function borderPoint(n, tx, ty){
-    const cx = n.x + n.w/2, cy = n.y + n.h/2;
-    let dx = tx - cx, dy = ty - cy;
-    const len = Math.hypot(dx, dy) || 1;
-    const ux = dx/len, uy = dy/len;
-    const txr = ux === 0 ? Infinity : (n.w/2)/Math.abs(ux);
-    const tyr = uy === 0 ? Infinity : (n.h/2)/Math.abs(uy);
-    const t = Math.min(txr, tyr);
-    return {x: cx + ux*t, y: cy + uy*t};
-  }
-
-  function renderFlow(container, spec){
-    const {w, h, nodes, edges} = spec;
-    const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
-    let s = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" role="img">`;
-    s += `<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6e7781"/></marker></defs>`;
-    for(const e of edges){
-      const a = byId[e[0]], b = byId[e[1]];
-      const p1 = borderPoint(a, b.x + b.w/2, b.y + b.h/2);
-      const p2 = borderPoint(b, a.x + a.w/2, a.y + a.h/2);
-      s += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="#6e7781" stroke-width="1.6" marker-end="url(#arr)"/>`;
+  /* vertical flow: rows of operand boxes, operator symbols between them,
+   * bit-range label on top (e.g. "31" / "0" or "SEW-1" / "0"). */
+  function vflow(container, spec){
+    const rows = spec.rows, ops = spec.ops || [];
+    const W = 236, H = 46, gap = 40, pad = 10, labelH = spec.bits ? 20 : 0;
+    const totalH = labelH + rows.length*H + (rows.length-1)*gap + pad;
+    const svgW = W + 64;
+    let s = `<svg width="${svgW}" height="${totalH}" viewBox="0 0 ${svgW} ${totalH}" xmlns="http://www.w3.org/2000/svg" role="img">`;
+    if(spec.bits){
+      s += `<text x="6" y="15" font-size="11" fill="#6e7781" font-family="${MONO}">${esc(spec.bits[0])}</text>`;
+      s += `<text x="${W+58}" y="15" font-size="11" fill="#6e7781" font-family="${MONO}" text-anchor="end">${esc(spec.bits[1])}</text>`;
     }
-    for(const n of nodes){
-      const c = COLORS[n.cls || "calc"];
-      s += `<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="8" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.5"/>`;
-      const cx = n.x + n.w/2, cy = n.y + n.h/2;
-      s += `<text x="${cx}" y="${cy-3}" text-anchor="middle" font-size="13" fill="${c.text}" font-family="ui-monospace,Menlo,Consolas,monospace">${esc(n.label)}</text>`;
-      s += `<text x="${cx}" y="${cy+16}" text-anchor="middle" font-size="11" fill="#6e7781" font-family="ui-sans-serif,system-ui,sans-serif">${esc(n.sub||'')}</text>`;
-    }
+    const x = 30;
+    let y = labelH + 4;
+    rows.forEach((r,i)=>{
+      const c = COLORS[r.cls || "src"];
+      s += `<rect x="${x}" y="${y}" width="${W}" height="${H}" rx="6" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.4"/>`;
+      s += `<text x="${x+W/2}" y="${y+H/2-3}" text-anchor="middle" font-size="14" fill="${c.text}" font-family="${MONO}">${esc(r.label)}</text>`;
+      if(r.sub) s += `<text x="${x+W/2}" y="${y+H/2+14}" text-anchor="middle" font-size="10" fill="#6e7781" font-family="${SANS}">${esc(r.sub)}</text>`;
+      if(i < ops.length){
+        const oy = y + H + 18;
+        s += `<text x="${x+W/2}" y="${oy}" text-anchor="middle" font-size="20" fill="#57606a" font-family="${SANS}">${esc(ops[i])}</text>`;
+      }
+      y += H + gap;
+    });
     s += `</svg>`;
     container.innerHTML = s;
   }
 
-  /* generic: sources (label+width) → op → result (label+width) */
-  function elem(container, spec){
-    const n = spec.sources.length;
-    const H = 54, gap = 90;
-    const srcX = 40, opX = 352, resX = 700;
-    const totalH = n*H + (n-1)*gap;
-    const nodes = [], edges = [];
-    spec.sources.forEach((s,i) => {
-      const id = "s"+i;
-      nodes.push({id, x:srcX, y:18 + i*(H+gap), w:168, h:H, label:s.label, sub:s.width, cls:"src"});
-      edges.push([id, "op"]);
-    });
-    const opY = 18 + (totalH - 82)/2;
-    nodes.push({id:"op", x:opX, y:opY, w:216, h:82, label:spec.op.label, sub:spec.op.sub, cls:"key"});
-    nodes.push({id:"res", x:resX, y:opY, w:168, h:H, label:spec.result.label, sub:spec.result.width, cls:"dst"});
-    edges.push(["op","res"]);
-    renderFlow(container, {w:930, h:totalH+40, nodes, edges});
-  }
+  const eW = e => e + "-bit element";
+  const elem = (w) => `${w}-bit element`;
 
   R.diagram = {
     render(container, inst){
-      if(inst.diagram === "fmadd") return this.fmadd(container);
-      if(inst.diagram === "vadd")  return this.vadd(container);
-      if(inst.diagram === "vwadd") return this.vwadd(container);
-      if(inst.diagram === "vnsrl") return this.vnsrl(container);
+      const key = inst.diagram;
+      if(key === "fmadd"){
+        vflow(container, {
+          bits:["31","0"],
+          rows:[{label:"f[rs1]", sub:"32-bit"}, {label:"f[rs2]", sub:"32-bit"},
+                {label:"f[rs3]", sub:"32-bit"}, {label:"f[rd]", sub:"32-bit", cls:"dst"}],
+          ops:["+","×","="],
+        });
+        return;
+      }
+      const fn = this[key];
+      if(fn) return fn(container, inst);
       container.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:10px">Behavior diagram not generated yet.</div>`;
     },
-    fmadd(container){
-      elem(container, {
-        sources:[{label:"f[rs1]", width:"32-bit"}, {label:"f[rs2]", width:"32-bit"}, {label:"f[rs3]", width:"32-bit"}],
-        op:{label:"FMADD.S", sub:"rd = (rs1 × rs2) + rs3  ·  single rounding"},
-        result:{label:"f[rd]", width:"32-bit"},
-      });
-    },
-    vadd(container){
-      elem(container, {
-        sources:[{label:"vs2[i]", width:"SEW"}, {label:"vs1[i]", width:"SEW"}],
-        op:{label:"vadd.vv", sub:"vd[i] = vs2[i] + vs1[i]"},
-        result:{label:"vd[i]", width:"SEW"},
-      });
-    },
-    vwadd(container){
-      elem(container, {
-        sources:[{label:"vs2[i]", width:"SEW"}, {label:"vs1[i]", width:"SEW"}],
-        op:{label:"vwadd.vv", sub:"widening: vd[i] = vs2[i] + vs1[i]"},
-        result:{label:"vd[i]", width:"2·SEW"},
-      });
-    },
-    vnsrl(container){
-      elem(container, {
-        sources:[{label:"vs2[i]", width:"2·SEW"}],
-        op:{label:"vnsrl.wi", sub:"narrowing: vd[i] = vs2[i] >> uimm"},
-        result:{label:"vd[i]", width:"SEW"},
-      });
-    },
+    /* ---- element-wise / reduction ---- */
+    vadd(container){ vflow(container, {
+      bits:["SEW-1","0"],
+      rows:[{label:"vs2[i]", sub:"SEW"}, {label:"vs1[i]", sub:"SEW"}, {label:"vd[i]", sub:"SEW", cls:"dst"}],
+      ops:["+","="],
+    }); },
+    vwadd(container){ vflow(container, {
+      bits:["2·SEW-1","0"],
+      rows:[{label:"vs2[i]", sub:"SEW"}, {label:"vs1[i]", sub:"SEW"}, {label:"vd[i]", sub:"2·SEW (widening)", cls:"dst"}],
+      ops:["+","="],
+    }); },
+    vnsrl(container){ vflow(container, {
+      bits:["SEW-1","0"],
+      rows:[{label:"vs2[i]", sub:"2·SEW"}, {label:"vd[i]", sub:"SEW (narrowing)", cls:"dst"}],
+      ops:["≫","="],
+    }); },
+    vfmacc(container){ vflow(container, {
+      bits:["SEW-1","0"],
+      rows:[{label:"vs1[i]", sub:"SEW"}, {label:"vs2[i]", sub:"SEW"}, {label:"vd[i]", sub:"accumulator"}, {label:"vd = vs1·vs2 + vd", sub:"SEW", cls:"dst"}],
+      ops:["×","+","="],
+    }); },
+    vredsum(container){ vflow(container, {
+      bits:["SEW-1","0"],
+      rows:[{label:"vs2[0..vl-1]", sub:"SEW elements"}, {label:"vs1[0]", sub:"SEW"}, {label:"vd[0]", sub:"SEW (reduced to scalar)", cls:"dst"}],
+      ops:["Σ","="],
+    }); },
+    /* ---- loads / stores ---- */
+    vle8(container){ vflow(container, {
+      bits:["7","0"],
+      rows:[{label:"mem[base + i]", sub:"8-bit element"}, {label:"vd[i]", sub:"8-bit element", cls:"dst"}],
+      ops:["→"],
+    }); },
+    vse16(container){ vflow(container, {
+      bits:["15","0"],
+      rows:[{label:"vs3[i]", sub:"16-bit element"}, {label:"mem[base + i]", sub:"16-bit element", cls:"dst"}],
+      ops:["→"],
+    }); },
+    vlse32(container){ vflow(container, {
+      bits:["31","0"],
+      rows:[{label:"mem[base + i·stride]", sub:"32-bit element"}, {label:"vd[i]", sub:"32-bit element", cls:"dst"}],
+      ops:["→"],
+    }); },
+    vluxei16(container){ vflow(container, {
+      bits:["15","0"],
+      rows:[{label:"mem[base + vs2[i]]", sub:"16-bit element"}, {label:"vd[i]", sub:"16-bit element", cls:"dst"}],
+      ops:["→"],
+    }); },
   };
 })();
