@@ -66,7 +66,7 @@
         f2+=`<td colspan="${w}" class="${named(label)?'droppedname':''}"${named(label)?` title="${esc(label)}"`:''}>${named(label)?esc(label):''}</td>`;
       } else {
         const nm=sob(label);
-        f1+=`<td colspan="${w}" class="lr fld">${esc(nm)}</td>`;
+        f1+=`<td colspan="${w}" class="lr">${esc(nm)}</td>`;
         f2+=`<td colspan="${w}"></td>`;
       }
     }
@@ -78,7 +78,7 @@
     const tokens = String(cenc).trim().split(/\s+/).filter(t => t !== '|');
     const segs = [];
     for(const tok of tokens){
-      if(/^[01]+$/.test(tok)){ segs.push({fixed:tok, disp:null, w:tok.length}); continue; }
+      if(/^[01]+$/.test(tok)){ segs.push({fixed:tok, raw:tok, disp:null, w:tok.length}); continue; }
       let base = tok, w = 0;
       const m = tok.match(/^([A-Za-z][A-Za-z0-9'_]*)(?:\[([^\]]+)\])?$/);
       if(m){
@@ -89,7 +89,7 @@
           w = {rd:5,rs1:5,rs2:5,"rd'":3,"rs1'":3,"rs2'":3,shamt:5}[base] || 0;
         }
       }
-      segs.push({fixed:null, disp:base, w});
+      segs.push({fixed:null, raw:tok, disp:base, w});
     }
     return segs;
   }
@@ -101,23 +101,25 @@
       if(s.fixed!=null){
         for(let i=0;i<s.w;i++){ const c=(s.w===1)?'lr':(i===0?'l':(i===s.w-1?'r':'')); f1+=`<td class="${c}">${s.fixed[i]}</td>`; }
       } else {
-        f1+=`<td colspan="${s.w}" class="lr fld" title="${esc(s.disp)}">${esc(s.disp)}</td>`;
+        f1+=`<td colspan="${s.w}" class="lr" title="${esc(s.disp)}">${esc(s.disp)}</td>`;
       }
     }
     f1+='</tr>';
     let f2='<tr class="secondrow">';
     segs.forEach((s, idx) => {
-      if(idx===0 && s.fixed!=null && s.w===3){ f2+=`<td colspan="3" class="droppedname fld">funct3</td>`; }
-      else if(idx===segs.length-1 && s.fixed!=null && s.w===2){ f2+=`<td colspan="2" class="droppedname fld">op</td>`; }
+      if(idx===0 && s.fixed!=null && s.w===3){ f2+=`<td colspan="3" class="droppedname">funct3</td>`; }
+      else if(idx===segs.length-1 && s.fixed!=null && s.w===2){ f2+=`<td colspan="2" class="droppedname">op</td>`; }
       else { f2+=`<td colspan="${s.w}"></td>`; }
     });
     f2+='</tr>';
-    return `<div class="regdiagram-16"><table class="regdiagram"><thead>${head}</thead><tbody>${f1}${f2}</tbody></table></div>`;
+    let f3='<tr class="cencrow">';
+    for(const s of segs){ f3+=`<td colspan="${s.w}">${esc(s.raw)}</td>`; }
+    f3+='</tr>';
+    return `<div class="regdiagram-16"><table class="regdiagram"><thead>${head}</thead><tbody>${f1}${f2}${f3}</tbody></table></div>`;
   }
   function renderEncoding(inst){
     if(inst.bit16){
       return `${c16regdiagram(inst.cenc)}
-      <div class="mono" style="font-size:12px;color:var(--muted);margin-top:6px">${esc(inst.cenc)}</div>
       <div class="bit-legend">16-bit compressed instruction: bits [15:13] = funct3, [1:0] = quadrant. Operand fields are named by field; the exact immediate-bit mapping (e.g. imm[5]) appears in the text above — immediates are scrambled across the 16-bit word, so the header number is the bit position, not the immediate index.</div>`;
     }
     let layout = LAYOUTS[inst.type] || LAYOUTS.I;
