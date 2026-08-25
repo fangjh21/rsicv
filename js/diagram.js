@@ -83,7 +83,7 @@ window.RISCV = window.RISCV || {};
   }
 
   const grp = (n,e) => `${n}×${e}b`;
-  const ctxS = (name) => [name, `VLEN=${VLEN} · LMUL=${LMUL} → each strip = a register group = ${GBITS} bits · masked with v0.t (vm=0)`];
+  const ctxS = (name) => [name, `VLEN=${VLEN} · LMUL=${LMUL} → register group = 2 regs = ${GBITS} bits · masked (vm=0)`];
 
   R.diagram = {
     render(container, inst){
