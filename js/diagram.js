@@ -34,7 +34,8 @@ window.RISCV = window.RISCV || {};
     const bounds = [GBITS]; for(let k=1;k<nShow;k++) bounds.push(GBITS - k*sew); bounds.push(0);
     bounds.forEach((b,k)=>{
       const bx = x + k*ew;
-      s += `<text x="${bx}" y="${ctxH+labH-3}" font-size="9.5" fill="#57606a" font-family="${MONO}" text-anchor="${k===0?'start':(k===nShow?'end':'middle')}">${b}</text>`;
+      const anchor = k===0 ? 'start' : (k===nShow ? 'end' : 'middle');
+      s += `<text x="${bx}" y="${ctxH+labH-3}" font-size="9.5" fill="#57606a" font-family="${MONO}" text-anchor="${anchor}">${b}</text>`;
     });
     let y = ctxH + labH + 24;
     regs.forEach((r,i)=>{
@@ -51,8 +52,8 @@ window.RISCV = window.RISCV || {};
         s += `<rect x="${x}" y="${y}" width="${W}" height="${H}" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.4"/>`;
         s += `<text x="${x+8}" y="${y+H/2+4}" font-size="12" font-weight="600" fill="${c.text}" font-family="${MONO}">${esc(r.label)}</text>`;
         if(r.sub) s += `<text x="${x+W-8}" y="${y+H/2+3}" font-size="10" fill="#6e7781" font-family="${SANS}" text-anchor="end">${esc(r.sub)}</text>`;
-        for(let k=1;k<nShow;k++) s += `<line x1="${x+k*ew}" y1="${y}" x2="${x+k*ew}" y2="${y+H}" stroke="${c.stroke}" stroke-opacity="0.35" stroke-width="1"/>`;
-        if(spec.applyMask) MASK.slice(0,nShow).forEach((b,k)=>{ if(!b) s += `<rect x="${x+k*ew}" y="${y}" width="${ew}" height="${H}" fill="${c.fill}" fill-opacity="0.22"/>`; });
+        for(let k=1;k<nShow;k++) s += `<line x1="${x+k*ew}" y1="${y}" x2="${x+k*ew}" y2="${y+H}" stroke="${r.cls==='dst'?'#9aa2ad':c.stroke}" stroke-opacity="${r.cls==='dst'?'0.65':'0.35'}" stroke-width="1"/>`;
+        if(spec.applyMask) MASK.slice(0,nShow).forEach((b,k)=>{ if(!b) s += `<rect x="${x+k*ew}" y="${y}" width="${ew}" height="${H}" fill="${r.cls==='dst'?'#1c2128':'#d8dee4'}" fill-opacity="0.85"/>`; });
       }
       if(i < ops.length){
         const oy = y + H + 15;
@@ -64,7 +65,7 @@ window.RISCV = window.RISCV || {};
     container.innerHTML = s;
   }
 
-  const grp = (n,e) => `${n}×${e}b = ${GBITS}b`;
+  const grp = (n,e) => `${n}×${e}b`;
   const ctxS = (name, extra) => `VLEN=${VLEN} · LMUL=${LMUL} · ${name}${extra?` · ${extra}`:""}`;
 
   R.diagram = {
@@ -83,33 +84,33 @@ window.RISCV = window.RISCV || {};
     vadd(container){ vflow(container, {
       ctx: ctxS("vadd.vv · SEW=32 → 8 elements · vm=0"),
       regs:[{label:"vs2", sub:grp(8,32)}, {label:"vs1", sub:grp(8,32)},
-            {label:"v0.t", sub:"vm=0 mask", cls:"mask", maskrow:true},
+            {label:"v0.t", sub:"1 bit/elem · vm=0", cls:"mask", maskrow:true},
             {label:"vd", sub:grp(8,32), cls:"dst"}],
       ops:["+","","="], sew:32, applyMask:true,
     }); },
     vwadd(container){ vflow(container, {
       ctx: ctxS("vwadd.vv · widening 32b → 64b (2·LMUL) · vm=0"),
       regs:[{label:"vs2", sub:grp(8,32)}, {label:"vs1", sub:grp(8,32)},
-            {label:"v0.t", sub:"vm=0 mask", cls:"mask", maskrow:true},
+            {label:"v0.t", sub:"1 bit/elem · vm=0", cls:"mask", maskrow:true},
             {label:"vd", sub:"4×64b · 2·LMUL", cls:"dst"}],
       ops:["+","","="], sew:64, applyMask:true,
     }); },
     vnsrl(container){ vflow(container, {
       ctx: ctxS("vnsrl.wi · narrowing 64b → 32b · vm=0"),
-      regs:[{label:"vs2", sub:"4×64b · 2·LMUL"}, {label:"v0.t", sub:"vm=0 mask", cls:"mask", maskrow:true},
+      regs:[{label:"vs2", sub:"4×64b · 2·LMUL"}, {label:"v0.t", sub:"1 bit/elem · vm=0", cls:"mask", maskrow:true},
             {label:"vd", sub:grp(8,32), cls:"dst"}],
       ops:["≫","="], sew:32, applyMask:true,
     }); },
     vfmacc(container){ vflow(container, {
       ctx: ctxS("vfmacc.vv · FP multiply-accumulate · SEW=32 · vm=0"),
       regs:[{label:"vs1", sub:grp(8,32)}, {label:"vs2", sub:grp(8,32)},
-            {label:"vd", sub:"acc"}, {label:"v0.t", sub:"vm=0 mask", cls:"mask", maskrow:true},
+            {label:"vd", sub:"acc"}, {label:"v0.t", sub:"1 bit/elem · vm=0", cls:"mask", maskrow:true},
             {label:"vd = vs1·vs2 + vd", sub:grp(8,32), cls:"dst"}],
       ops:["×","+","","="], sew:32, applyMask:true,
     }); },
     vredsum(container){ vflow(container, {
       ctx: ctxS("vredsum.vs · reduce → scalar · vm=0"),
-      regs:[{label:"vs2[0..vl-1]", sub:grp(8,32)}, {label:"v0.t", sub:"vm=0 mask", cls:"mask", maskrow:true},
+      regs:[{label:"vs2[0..vl-1]", sub:grp(8,32)}, {label:"v0.t", sub:"1 bit/elem · vm=0", cls:"mask", maskrow:true},
             {label:"vs1[0]", sub:"scalar acc"}, {label:"vd[0]", sub:"scalar result", cls:"dst"}],
       ops:["Σ","","="], sew:32, applyMask:true,
     }); },
@@ -118,7 +119,7 @@ window.RISCV = window.RISCV || {};
       const N = Math.floor(GBITS/e);
       vflow(container, {
         ctx: ctxS(kind==="unit" ? `${e}-bit unit load` : kind==="strided" ? `${e}-bit strided load (stride=rs2)` : `${e}-bit indexed load (idx=vs2)`, "vm=0"),
-        regs:[{label:mem, sub:`${N}×${e}b elements`, cls:"mem"}, {label:"v0.t", sub:"vm=0 mask", cls:"mask", maskrow:true},
+        regs:[{label:mem, sub:`${N}×${e}b elements`, cls:"mem"}, {label:"v0.t", sub:"1 bit/elem · vm=0", cls:"mask", maskrow:true},
               {label:"vd", sub:grp(N,e), cls:"dst"}],
         ops:["→",""], sew:+(e), applyMask:true,
       });
@@ -128,7 +129,7 @@ window.RISCV = window.RISCV || {};
     vluxei16(container){ this.vl(container,"16","indexed"); },
     vse16(container){ vflow(container, {
       ctx: ctxS("vse16.v · unit-stride 16-bit store · vm=0"),
-      regs:[{label:"vs3", sub:grp(16,16)}, {label:"v0.t", sub:"vm=0 mask", cls:"mask", maskrow:true},
+      regs:[{label:"vs3", sub:grp(16,16)}, {label:"v0.t", sub:"1 bit/elem · vm=0", cls:"mask", maskrow:true},
             {label:"mem[base+i]", sub:"×16 elements", cls:"mem"}],
       ops:["","→"], sew:16, applyMask:true,
     }); },
