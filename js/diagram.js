@@ -9,7 +9,7 @@ window.RISCV = window.RISCV || {};
   const VLEN = 128, LMUL = 2, GBITS = VLEN*LMUL;
   const COLORS = {
     src:{fill:"#ffffff",stroke:"#24292f",text:"#24292f"},
-    dst:{fill:"#218bff",op:"0.28",stroke:"#0969da",text:"#0550ae"},
+    dst:{fill:"#ddf4ff",stroke:"#0969da",text:"#0550ae"},
     mask:{fill:"#eef6ff",stroke:"#0550ae",text:"#0550ae"},
     mem:{fill:"#ffffff",stroke:"#57606a",text:"#57606a"},
   };
@@ -39,9 +39,9 @@ window.RISCV = window.RISCV || {};
       if(!line) return;
       s += `<text x="${x+2}" y="${13+i*13.5}" font-size="${i===0?'10.5':'10'}" fill="${i===0?'#57606a':'#8b949e'}" font-family="${SANS}">${esc(line)}</text>`;
     });
-    // labels: register size at top, then MSB of each element, then 0
+    // labels: MSB of each element, then 0 (first label = MSB of element 0)
     const bounds = spec.single ? [sew-1, 0] : (()=>{
-      const b = [GBITS];
+      const b = [GBITS-1];
       for(let k=1;k<nShow;k++) b.push(GBITS - 1 - k*sew);
       if(nShow === nFull) b.push(0);
       return b;
@@ -58,16 +58,16 @@ window.RISCV = window.RISCV || {};
       s += `<text x="${x}" y="${y-6}" font-size="11" font-weight="600" fill="${c.text}" font-family="${MONO}">${esc(r.label)}</text>`;
       if(r.sub) s += `<text x="${x+W}" y="${y-6}" font-size="10" fill="#6e7781" font-family="${SANS}" text-anchor="end">${esc(r.sub)}</text>`;
       // strip
-      s += `<rect x="${x}" y="${y}" width="${W}" height="${H}" fill="${c.fill}"${c.op?` fill-opacity="${c.op}"`:""} stroke="${c.stroke}" stroke-width="1.4"/>`;
+      s += `<rect x="${x}" y="${y}" width="${W}" height="${H}" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.4"/>`;
       if(r.maskrow){
         MASK.slice(0,nShow).forEach((b,k)=>{
-          const bx = x+0.5+k*ew, bw = ew-1;
-          s += `<rect x="${bx}" y="${y+0.5}" width="${bw}" height="${H-1}" fill="${b?'#0550ae':'#ffffff'}" stroke="#0550ae" stroke-width="0.6"/>`;
+          const bx = x+k*ew, bw = ew;
+          s += `<rect x="${bx}" y="${y+0.5}" width="${bw}" height="${H-1}" fill="${b?'#0550ae':'#ffffff'}" stroke="#0550ae" stroke-width="0.75"/>`;
           s += `<text x="${bx+bw/2}" y="${y+H/2+3.5}" text-anchor="middle" font-size="9" fill="${b?'#ffffff':'#0550ae'}" font-family="${MONO}">${b}</text>`;
         });
       } else {
         // masked-off overlay first, then division lines on top
-        if(spec.applyMask) MASK.slice(0,nShow).forEach((b,k)=>{ if(!b) s += `<rect x="${x+k*ew+0.5}" y="${y+0.5}" width="${ew-1}" height="${H-1}" fill="${r.cls==='dst'?'#d0d7de':'#d8dee4'}" fill-opacity="0.9"/>`; });
+        if(spec.applyMask) MASK.slice(0,nShow).forEach((b,k)=>{ if(!b) s += `<rect x="${x+k*ew+0.5}" y="${y+0.5}" width="${ew-1}" height="${H-1}" fill="#d8dee4" fill-opacity="0.9"/>`; });
         for(let k=1;k<nShow;k++) s += `<line x1="${x+k*ew}" y1="${y}" x2="${x+k*ew}" y2="${y+H}" stroke="${c.stroke}" stroke-opacity="0.35" stroke-width="1"/>`;
       }
       if(nFull > nShow && !r.maskrow) s += `<text x="${x+W}" y="${y+H-4}" font-size="9" fill="${c.text}" fill-opacity="0.5" font-family="${SANS}" text-anchor="end">… ×${nFull}</text>`;
