@@ -9,7 +9,7 @@ window.RISCV = window.RISCV || {};
   const VLEN = 128, LMUL = 2, GBITS = VLEN*LMUL;
   const COLORS = {
     src:{fill:"#ffffff",stroke:"#24292f",text:"#24292f"},
-    dst:{fill:"#218bff",stroke:"#218bff",text:"#ffffff"},
+    dst:{fill:"#218bff",op:"0.28",stroke:"#0969da",text:"#0550ae"},
     mask:{fill:"#eef6ff",stroke:"#0550ae",text:"#0550ae"},
     mem:{fill:"#ffffff",stroke:"#57606a",text:"#57606a"},
   };
@@ -58,7 +58,7 @@ window.RISCV = window.RISCV || {};
       s += `<text x="${x}" y="${y-6}" font-size="11" font-weight="600" fill="${c.text}" font-family="${MONO}">${esc(r.label)}</text>`;
       if(r.sub) s += `<text x="${x+W}" y="${y-6}" font-size="10" fill="#6e7781" font-family="${SANS}" text-anchor="end">${esc(r.sub)}</text>`;
       // strip
-      s += `<rect x="${x}" y="${y}" width="${W}" height="${H}" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.4"/>`;
+      s += `<rect x="${x}" y="${y}" width="${W}" height="${H}" fill="${c.fill}"${c.op?` fill-opacity="${c.op}"`:""} stroke="${c.stroke}" stroke-width="1.4"/>`;
       if(r.maskrow){
         MASK.slice(0,nShow).forEach((b,k)=>{
           const bx = x+0.5+k*ew, bw = ew-1;
@@ -68,7 +68,7 @@ window.RISCV = window.RISCV || {};
       } else {
         // masked-off overlay first, then division lines on top
         if(spec.applyMask) MASK.slice(0,nShow).forEach((b,k)=>{ if(!b) s += `<rect x="${x+k*ew+0.5}" y="${y+0.5}" width="${ew-1}" height="${H-1}" fill="${r.cls==='dst'?'#d0d7de':'#d8dee4'}" fill-opacity="0.9"/>`; });
-        for(let k=1;k<nShow;k++) s += `<line x1="${x+k*ew}" y1="${y}" x2="${x+k*ew}" y2="${y+H}" stroke="${r.cls==='dst'?'#ffffff':c.stroke}" stroke-opacity="${r.cls==='dst'?'0.4':'0.35'}" stroke-width="1"/>`;
+        for(let k=1;k<nShow;k++) s += `<line x1="${x+k*ew}" y1="${y}" x2="${x+k*ew}" y2="${y+H}" stroke="${c.stroke}" stroke-opacity="0.35" stroke-width="1"/>`;
       }
       if(nFull > nShow && !r.maskrow) s += `<text x="${x+W}" y="${y+H-4}" font-size="9" fill="${c.text}" fill-opacity="0.5" font-family="${SANS}" text-anchor="end">… ×${nFull}</text>`;
       if(i < ops.length){
@@ -77,7 +77,7 @@ window.RISCV = window.RISCV || {};
       }
       y += H + gapA;
     });
-    if(spec.applyMask) s += `<text x="${x+2}" y="${legendY}" font-size="9.5" fill="#57606a" font-family="${SANS}">grey cell = element masked off (v0.t = 0 · vm = 0); blue = result written</text>`;
+    if(spec.applyMask) s += `<text x="${x+2}" y="${legendY}" font-size="9.5" fill="#57606a" font-family="${SANS}">grey cell = element masked off (v0.t = 0 · vm = 0); light blue = result written</text>`;
     s += `</svg>`;
     container.innerHTML = s;
   }
