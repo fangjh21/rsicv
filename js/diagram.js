@@ -77,19 +77,19 @@ window.RISCV = window.RISCV || {};
       }
       y += H + gapA;
     });
-    if(spec.applyMask) s += `<text x="${x+2}" y="${legendY}" font-size="9.5" fill="#57606a" font-family="${SANS}">grey cell = element skipped (mask bit = 0); light blue = element written</text>`;
+    if(spec.applyMask) s += `<text x="${x+2}" y="${legendY}" font-size="9.5" fill="#57606a" font-family="${SANS}">grey = skipped (mask bit 0, vm = 0); light blue = written; vm = 1 → no mask</text>`;
     s += `</svg>`;
     container.innerHTML = s;
   }
 
   const grp = (n,e) => `${n}×${e}b`;
-  const ctxS = (name) => [name, `VLEN=${VLEN} · LMUL=${LMUL} → register group = 2 regs = ${GBITS} bits · masked`];
+  const ctxS = (name) => [name, `VLEN=${VLEN}, LMUL=${LMUL} → register group = 2 regs = ${GBITS} bits; vm = 0 (masked)`];
 
   R.diagram = {
     render(container, inst){
       const key = inst.diagram;
       if(key === "fmadd"){ vflow(container, {
-        ctx: "FMADD.S · fused scalar FP multiply-add: f[rd] = f[rs1] × f[rs2] + f[rs3]",
+        ctx: "FMADD.S — fused scalar FP multiply-add: f[rd] = f[rs1] × f[rs2] + f[rs3]",
         regs:[{label:"f[rs1]", sub:"32b"}, {label:"f[rs2]", sub:"32b"},
               {label:"f[rs3]", sub:"32b"}, {label:"f[rd]", sub:"result", cls:"dst"}],
         ops:["×","+","="], sew:32, single:true,
@@ -99,47 +99,47 @@ window.RISCV = window.RISCV || {};
       container.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:10px">Behavior diagram not generated yet.</div>`;
     },
     vadd(container){ vflow(container, {
-      ctx: ctxS("vadd.vv · element-wise add of 8 × 32b"),
+      ctx: ctxS("vadd.vv — element-wise add of 8 × 32b"),
       regs:[{label:"vs2", sub:grp(8,32)}, {label:"vs1", sub:grp(8,32)},
-            {label:"v0 (mask)", sub:"1 bit per element", cls:"mask", maskrow:true},
+            {label:"v0 (mask)", sub:"vm = 0: 1 bit per element", cls:"mask", maskrow:true},
             {label:"vd", sub:grp(8,32), cls:"dst"}],
       ops:["+","","="], sew:32, applyMask:true,
     }); },
     vwadd(container){ vflow(container, {
-      ctx: ctxS("vwadd.vv · widening add: 32b + 32b → 64b"),
+      ctx: ctxS("vwadd.vv — widening add: 32b + 32b → 64b"),
       regs:[{label:"vs2", sub:grp(8,32)}, {label:"vs1", sub:grp(8,32)},
-            {label:"v0 (mask)", sub:"1 bit per element", cls:"mask", maskrow:true},
-            {label:"vd", sub:"4×64b · 2·LMUL", cls:"dst"}],
+            {label:"v0 (mask)", sub:"vm = 0: 1 bit per element", cls:"mask", maskrow:true},
+            {label:"vd", sub:"8×64b (4 shown)", cls:"dst"}],
       ops:["+","","="], sew:64, applyMask:true,
     }); },
     vnsrl(container){ vflow(container, {
-      ctx: ctxS("vnsrl.wi · narrowing shift: 64b → 32b"),
-      regs:[{label:"vs2", sub:"4×64b · 2·LMUL"}, {label:"v0 (mask)", sub:"1 bit per element", cls:"mask", maskrow:true},
+      ctx: ctxS("vnsrl.wi — narrowing shift: 64b → 32b"),
+      regs:[{label:"vs2", sub:"8×64b (4 shown)"}, {label:"v0 (mask)", sub:"vm = 0: 1 bit per element", cls:"mask", maskrow:true},
             {label:"vd", sub:grp(8,32), cls:"dst"}],
       ops:["≫","="], sew:32, applyMask:true,
     }); },
     vfmacc(container){ vflow(container, {
-      ctx: ctxS("vfmacc.vv · FP multiply-accumulate: vs1 × vs2 + vd"),
+      ctx: ctxS("vfmacc.vv — FP multiply-accumulate: vs1 × vs2 + vd"),
       regs:[{label:"vs1", sub:grp(8,32)}, {label:"vs2", sub:grp(8,32)},
-            {label:"vd", sub:"acc"}, {label:"v0 (mask)", sub:"1 bit per element", cls:"mask", maskrow:true},
-            {label:"vd = vs1·vs2 + vd", sub:grp(8,32), cls:"dst"}],
+            {label:"vd", sub:"acc"}, {label:"v0 (mask)", sub:"vm = 0: 1 bit per element", cls:"mask", maskrow:true},
+            {label:"vd = vs1×vs2 + vd", sub:grp(8,32), cls:"dst"}],
       ops:["×","+","","="], sew:32, applyMask:true,
     }); },
     vredsum(container){ vflow(container, {
-      ctx: ctxS("vredsum.vs · reduce all elements into one scalar"),
-      regs:[{label:"vs2[0..vl-1]", sub:grp(8,32)}, {label:"v0 (mask)", sub:"1 bit per element", cls:"mask", maskrow:true},
+      ctx: ctxS("vredsum.vs — reduce all elements into one scalar"),
+      regs:[{label:"vs2[0..vl-1]", sub:grp(8,32)}, {label:"v0 (mask)", sub:"vm = 0: 1 bit per element", cls:"mask", maskrow:true},
             {label:"vs1[0]", sub:"scalar acc"}, {label:"vd[0]", sub:"scalar result", cls:"dst"}],
       ops:["Σ","","="], sew:32, applyMask:true,
     }); },
     vl(container, e, kind){
-      const mem = kind==="unit" ? "mem[base+i]" : kind==="strided" ? "mem[base+i·stride]" : "mem[base+vs2[i]]";
+      const mem = kind==="unit" ? "mem[base+i]" : kind==="strided" ? "mem[base+i×stride]" : "mem[base+vs2[i]]";
       const N = Math.floor(GBITS/e);
-      const op = kind==="unit" ? `vle${e}.v · unit-stride load: ${N} × ${e}b elements`
-               : kind==="strided" ? `vlse${e}.v · strided load (stride = rs2): ${N} × ${e}b elements`
-               : `vluxei${e}.v · indexed load (index = vs2): ${N} × ${e}b elements`;
+      const op = kind==="unit" ? `vle${e}.v — unit-stride load: ${N} × ${e}b elements`
+               : kind==="strided" ? `vlse${e}.v — strided load (stride = rs2): ${N} × ${e}b elements`
+               : `vluxei${e}.v — indexed load (index = vs2): ${N} × ${e}b elements`;
       vflow(container, {
         ctx: ctxS(op),
-        regs:[{label:mem, sub:`${N}×${e}b elements`, cls:"mem"}, {label:"v0 (mask)", sub:"1 bit per element", cls:"mask", maskrow:true},
+        regs:[{label:mem, sub:`${N}×${e}b elements`, cls:"mem"}, {label:"v0 (mask)", sub:"vm = 0: 1 bit per element", cls:"mask", maskrow:true},
               {label:"vd", sub:grp(N,e), cls:"dst"}],
         ops:["→",""], sew:+(e), applyMask:true,
       });
@@ -148,8 +148,8 @@ window.RISCV = window.RISCV || {};
     vlse32(container){ this.vl(container,"32","strided"); },
     vluxei16(container){ this.vl(container,"16","indexed"); },
     vse16(container){ vflow(container, {
-      ctx: ctxS("vse16.v · unit-stride store: 16 × 16b elements"),
-      regs:[{label:"vs3", sub:grp(16,16)}, {label:"v0 (mask)", sub:"1 bit per element", cls:"mask", maskrow:true},
+      ctx: ctxS("vse16.v — unit-stride store: 16 × 16b elements"),
+      regs:[{label:"vs3", sub:grp(16,16)}, {label:"v0 (mask)", sub:"vm = 0: 1 bit per element", cls:"mask", maskrow:true},
             {label:"mem[base+i]", sub:"×16 elements", cls:"mem"}],
       ops:["","→"], sew:16, applyMask:true,
     }); },
