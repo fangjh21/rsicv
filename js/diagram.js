@@ -110,7 +110,8 @@ window.RISCV = window.RISCV || {};
       if(full > g.n && !r.maskrow && !r.single) s += `<text x="${x+rw-4}" y="${y+H-4}" font-size="9" fill="${c.text}" fill-opacity="0.5" font-family="${SANS}" text-anchor="end">… ×${full}</text>`;
       if(i < ops.length){
         const oy = y + H + 14;
-        s += `<text x="${x+maxRW/2}" y="${oy}" text-anchor="middle" font-size="17" fill="#57606a" font-family="${SANS}">${esc(ops[i])}</text>`;
+        const narrower = Math.min(rw, geo[i+1] ? geo[i+1].rw : rw);
+        s += `<text x="${x+narrower/2}" y="${oy}" text-anchor="middle" font-size="17" fill="#57606a" font-family="${SANS}">${esc(ops[i])}</text>`;
       }
       y += H + gapA;
     });
