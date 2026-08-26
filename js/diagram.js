@@ -25,17 +25,16 @@ window.RISCV = window.RISCV || {};
     const regs = spec.regs, ops = spec.ops || [];
     const sew = spec.sew || 32;
     const W = 396, H = 30;
-    const M = 24;                       // symmetric side margin → strip centered in svg
+    const M = 24;                       // outer margin
     const PX = W/256;                   // pixels per bit: 32b element = 49.5px, 64b = 99px
-    const x = M;
     const ctxLines = Array.isArray(spec.ctx) ? spec.ctx : [spec.ctx];
     const labelY = 13 + ctxLines.length*13.5 + 4;   // bit labels below ctx lines
     const y0 = labelY + 33;
-    // proportional geometry per row
+    // proportional geometry per row (widths/offsets are computed relative to the strip start)
     const geo = regs.map((r,i)=>{
       if(r.single){
         const s2 = r.sew || sew;
-        return {n:1, cw:s2*PX, rw:s2*PX};
+        return {n:1, cw:s2*PX, rw:s2*PX, s2};
       }
       let ref = r, s2 = r.sew || sew, b2 = r.bits || GBITS;
       if(r.maskrow){
@@ -47,11 +46,16 @@ window.RISCV = window.RISCV || {};
       const n = Math.min(Math.max(1, Math.floor(b2/s2)), CAP);
       return {n, cw:s2*PX, rw:n*s2*PX, s2};
     });
+    // name column on the left of the strips (ARM style), strips right of it
+    const nameW = regs.map(r => Math.ceil(String(r.label).length * 11 * 0.62));
+    const nameCol = Math.max(...nameW, 0) + 12;
+    const sx = M + nameCol;             // strip start x
     const maxRW = Math.max(...geo.map(g=>g.rw));
     const cwEst = str => { let w = 0; for(const ch of str) w += (ch>="0"&&ch<="9")||"wmWM".includes(ch) ? 0.62 : (ch===" " ? 0.3 : 0.56); return w; };
     const textW = Math.max(0, ...ctxLines.map((l,i)=> l ? cwEst(l)*(i===0?10.5:10) : 0),
       spec.applyMask ? cwEst("grey = skipped (mask bit 0, vm = 0); light blue = written; vm = 1 → no mask")*9.5 : 0);
-    const svgW = Math.round((Math.max(maxRW, textW) + 2*M)*10)/10;
+    const subW = Math.max(0, ...regs.map((r,i)=> r.sub ? sx + geo[i].rw + 10 + cwEst(r.sub)*10 : 0));
+    const svgW = Math.round((Math.max(sx + maxRW, M + 2 + textW, subW) + M)*10)/10;
     const desc = regs.map((r,i)=> r.maskrow ? "mask" : `${r.single?"1":"0"}|${r.sew||sew}|${r.bits||GBITS}|${geo[i].n}`);
     const shared = !spec.nolabels && desc[0] !== "mask" && desc.every(d => d === desc[0]);
     const gapA = shared ? 40 : 56;      // per-row labels need room under the op symbol
@@ -67,12 +71,12 @@ window.RISCV = window.RISCV || {};
     let s = `<svg width="${svgW}" height="${totalH}" viewBox="0 0 ${svgW} ${totalH}" xmlns="http://www.w3.org/2000/svg" role="img">`;
     ctxLines.forEach((line,i)=>{
       if(!line) return;
-      s += `<text x="${x+2}" y="${13+i*13.5}" font-size="${i===0?'10.5':'10'}" fill="${i===0?'#57606a':'#8b949e'}" font-family="${SANS}">${esc(line)}</text>`;
+      s += `<text x="${M+2}" y="${13+i*13.5}" font-size="${i===0?'10.5':'10'}" fill="${i===0?'#57606a':'#8b949e'}" font-family="${SANS}">${esc(line)}</text>`;
     });
     if(shared && geo[0].cw >= 34){   // cells too narrow (8b/16b) → labels would collide; rely on subs
       const g0 = geo[0];
       labelsFor(g0.n, sew, GBITS).forEach((b,k)=>{
-        const bx = x + k*g0.cw;
+        const bx = sx + k*g0.cw;
         const anchor = k===0 ? 'start' : (k===g0.n ? 'end' : 'middle');
         s += `<text x="${bx}" y="${labelY}" font-size="9.5" fill="#57606a" font-family="${MONO}" text-anchor="${anchor}">${b}</text>`;
       });
@@ -82,40 +86,39 @@ window.RISCV = window.RISCV || {};
       const c = COLORS[r.cls || "src"], g = geo[i], cw = g.cw, rw = g.rw;
       if(!shared && g.n > 1 && !r.maskrow && cw >= 34){
         labelsFor(g.n, g.s2, r.bits || GBITS).forEach((b,k)=>{
-          const bx = x + k*cw;
+          const bx = sx + k*cw;
           const anchor = k===0 ? 'start' : (k===g.n ? 'end' : 'middle');
           s += `<text x="${bx}" y="${y-19}" font-size="9.5" fill="#57606a" font-family="${MONO}" text-anchor="${anchor}">${b}</text>`;
         });
       }
-      // name + sub ABOVE the strip (not on the cells)
-      s += `<text x="${x}" y="${y-6}" font-size="11" font-weight="600" fill="${c.text}" font-family="${MONO}">${esc(r.label)}</text>`;
-      if(r.sub) s += (r.single || rw < 240)
-        ? `<text x="${x + Math.max(rw + 10, String(r.label).length*11*0.62 + 10)}" y="${y-6}" font-size="10" fill="#6e7781" font-family="${SANS}">${esc(r.sub)}</text>`
-        : `<text x="${x+rw}" y="${y-6}" font-size="10" fill="#6e7781" font-family="${SANS}" text-anchor="end">${esc(r.sub)}</text>`;
+      // name at the LEFT of the strip, vertically centered with it (ARM style)
+      s += `<text x="${M}" y="${y+H/2+4}" font-size="11" font-weight="600" fill="${c.text}" font-family="${MONO}">${esc(r.label)}</text>`;
+      if(r.sub) s += `<text x="${sx+rw+10}" y="${y+H/2+4}" font-size="10" fill="#6e7781" font-family="${SANS}">${esc(r.sub)}</text>`;
       // strip
-      s += `<rect x="${x}" y="${y}" width="${rw}" height="${H}" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.4"/>`;
+      s += `<rect x="${sx}" y="${y}" width="${rw}" height="${H}" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.4"/>`;
       if(r.maskrow){
         MASK.slice(0,g.n).forEach((b,k)=>{
-          const bx = x+k*cw, bw = cw;
+          const bx = sx+k*cw, bw = cw;
           s += `<rect x="${bx}" y="${y+0.5}" width="${bw}" height="${H-1}" fill="${b?'#0550ae':'#ffffff'}" stroke="#0550ae" stroke-width="0.75"/>`;
           s += `<text x="${bx+bw/2}" y="${y+H/2+3.5}" text-anchor="middle" font-size="9" fill="${b?'#ffffff':'#0550ae'}" font-family="${MONO}">${b}</text>`;
         });
       } else {
         // masked-off overlay first, then division lines on top
-        if(spec.applyMask) MASK.slice(0,g.n).forEach((b,k)=>{ if(!b) s += `<rect x="${x+k*cw+0.5}" y="${y+0.5}" width="${cw-1}" height="${H-1}" fill="#d8dee4" fill-opacity="0.9"/>`; });
-        for(let k=1;k<g.n;k++) s += `<line x1="${x+k*cw}" y1="${y}" x2="${x+k*cw}" y2="${y+H}" stroke="${c.stroke}" stroke-opacity="0.35" stroke-width="1"/>`;
-        if(r.text) s += `<text x="${x+rw/2}" y="${y+H/2+3.5}" text-anchor="middle" font-size="9.5" fill="${c.text}" fill-opacity="0.8" font-family="${MONO}">${esc(r.text)}</text>`;
+        if(spec.applyMask) MASK.slice(0,g.n).forEach((b,k)=>{ if(!b) s += `<rect x="${sx+k*cw+0.5}" y="${y+0.5}" width="${cw-1}" height="${H-1}" fill="#d8dee4" fill-opacity="0.9"/>`; });
+        for(let k=1;k<g.n;k++) s += `<line x1="${sx+k*cw}" y1="${y}" x2="${sx+k*cw}" y2="${y+H}" stroke="${c.stroke}" stroke-opacity="0.35" stroke-width="1"/>`;
+        if(r.text && !r.single) s += `<text x="${sx+rw/2}" y="${y+H/2+3.5}" text-anchor="middle" font-size="9.5" fill="${c.text}" fill-opacity="0.8" font-family="${MONO}">${esc(r.text)}</text>`;
+        if(r.text && r.single) s += `<text x="${sx+rw/2}" y="${y+H/2+3.5}" text-anchor="middle" font-size="9.5" fill="${c.text}" fill-opacity="0.8" font-family="${MONO}">${esc(r.text)}</text>`;
       }
       const full = Math.min(Math.max(1, Math.floor((r.bits || GBITS)/(r.sew || sew))), CAP);
-      if(full > g.n && !r.maskrow && !r.single) s += `<text x="${x+rw-4}" y="${y+H-4}" font-size="9" fill="${c.text}" fill-opacity="0.5" font-family="${SANS}" text-anchor="end">… ×${full}</text>`;
+      if(full > g.n && !r.maskrow && !r.single) s += `<text x="${sx+rw-4}" y="${y+H-4}" font-size="9" fill="${c.text}" fill-opacity="0.5" font-family="${SANS}" text-anchor="end">… ×${full}</text>`;
       if(i < ops.length){
         const oy = y + H + 14;
         const narrower = Math.min(rw, geo[i+1] ? geo[i+1].rw : rw);
-        s += `<text x="${x+narrower/2}" y="${oy}" text-anchor="middle" font-size="17" fill="#57606a" font-family="${SANS}">${esc(ops[i])}</text>`;
+        s += `<text x="${sx+narrower/2}" y="${oy}" text-anchor="middle" font-size="17" fill="#57606a" font-family="${SANS}">${esc(ops[i])}</text>`;
       }
       y += H + gapA;
     });
-    if(spec.applyMask) s += `<text x="${x+2}" y="${legendY}" font-size="9.5" fill="#57606a" font-family="${SANS}">grey = skipped (mask bit 0, vm = 0); light blue = written; vm = 1 → no mask</text>`;
+    if(spec.applyMask) s += `<text x="${M+2}" y="${legendY}" font-size="9.5" fill="#57606a" font-family="${SANS}">grey = skipped (mask bit 0, vm = 0); light blue = written; vm = 1 → no mask</text>`;
     s += `</svg>`;
     container.innerHTML = s;
   }
