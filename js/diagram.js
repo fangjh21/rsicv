@@ -70,7 +70,9 @@ window.RISCV = window.RISCV || {};
       }
       // name + sub ABOVE the strip (not on the cells)
       s += `<text x="${x}" y="${y-6}" font-size="11" font-weight="600" fill="${c.text}" font-family="${MONO}">${esc(r.label)}</text>`;
-      if(r.sub) s += `<text x="${x+W}" y="${y-6}" font-size="10" fill="#6e7781" font-family="${SANS}" text-anchor="end">${esc(r.sub)}</text>`;
+      if(r.sub) s += r.single
+        ? `<text x="${x+SW+10}" y="${y-6}" font-size="10" fill="#6e7781" font-family="${SANS}">${esc(r.sub)}</text>`
+        : `<text x="${x+W}" y="${y-6}" font-size="10" fill="#6e7781" font-family="${SANS}" text-anchor="end">${esc(r.sub)}</text>`;
       // strip
       const bw = r.single ? SW : W;
       s += `<rect x="${x}" y="${y}" width="${bw}" height="${H}" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.4"/>`;
@@ -135,16 +137,14 @@ window.RISCV = window.RISCV || {};
     vwaddu:"+", vwadd:"+", vwsubu:"−", vwsub:"−",
     "vwaddu.w":"+", "vwadd.w":"+", "vwsubu.w":"−", "vwsub.w":"−",
     vwmulu:"×", vwmulsu:"×", vwmul:"×",
-    vwmaccu:"×", vwmacc:"×", vwmaccus:"×", vwmaccsu:"×",
+    vwmaccu:"", vwmacc:"", vwmaccus:"", vwmaccsu:"",
     vrgather:"idx", vrgatherei16:"idx",
     vadc:"+c", vmadc:"carry", vsbc:"−b", vmsbc:"borrow",
     vmerge:"?:",
     vmseq:"==", vmsne:"!=", vmsltu:"<", vmslt:"<", vmsleu:"≤", vmsle:"≤", vmsgtu:">", vmsgt:">",
     vfadd:"+", vfsub:"−", vfmin:"min", vfmax:"max", vfsgnj:"sgn", vfsgnjn:"sgn", vfsgnjx:"sgn",
     vfdiv:"÷", vfrdiv:"÷", vfmul:"×", vfrsub:"−",
-    vfmadd:"×", vfnmadd:"−×", vfmsub:"×−", vfnmsub:"−×−",
-    vfmacc:"×", vfnmacc:"−×", vfmsac:"×−", vfnmsac:"−×−",
-    vfwmul:"×", vfwmacc:"×", vfwnmacc:"−×", vfwmsac:"×−", vfwnmsac:"−×−",
+    vfwmul:"×",
     vfwadd:"+", vfwsub:"−", "vfwadd.w":"+", "vfwsub.w":"−",
     vmfeq:"==", vmfne:"!=", vmflt:"<", vmfle:"≤", vmfgt:">", vmfge:"≥",
     vredsum:"Σ", vredand:"∧", vredor:"∨", vredxor:"⊕",
@@ -291,6 +291,12 @@ window.RISCV = window.RISCV || {};
     /* binary arithmetic vv/vx/vi/vf (+ widening / narrowing / accumulate) */
     vbin(container, inst, base, form){
       const op = OPS[base] || "op";
+      const FUSED = {
+        vfmadd:["×","+"], vfmsub:["×","−"], vfnmadd:["−×","+"], vfnmsub:["−×","−"],
+        vfmacc:["×","+"], vfmsac:["×","−"], vfnmacc:["−×","+"], vfnmsac:["−×","−"],
+        vfwmacc:["×","+"], vfwmsac:["×","−"], vfwnmacc:["−×","+"], vfwnmsac:["−×","−"],
+        vwmaccu:["×","+"], vwmacc:["×","+"], vwmaccus:["×","+"], vwmaccsu:["×","+"],
+      };
       const f2 = (form === "vv" || form === "wv") ? "vv" : (form === "vi" || form === "wi") ? "vi" : (form === "vf") ? "vf" : "vx";
       const src = OP2ROW[f2]();
       const acc = WIDMAC.has(base) || /^v(f)?(madd|nmadd|msub|nmsub|macc|nmacc|msac|nmsac)/.test(base) ||
@@ -306,7 +312,7 @@ window.RISCV = window.RISCV || {};
            {label:"vd (acc)", sub:(widen||acc)?"8×64b":"acc", sew:sewD, bits:(widen||acc)?512:undefined},
            MASKBIT, dstRow]
         : [srcRow, src, MASKBIT, dstRow];
-      const ops = acc ? [op, "+", "", "="] : [op, "", "="];
+      const ops = acc ? [...(FUSED[base] || [op, "+"]), "", "="] : [op, "", "="];
       vflow(container, { ctx: ctxOf(inst, true), regs, ops, sew:32, applyMask:true });
     },
 
