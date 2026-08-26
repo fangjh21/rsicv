@@ -23,19 +23,20 @@ window.RISCV = window.RISCV || {};
   function vflow(container, spec){
     const regs = spec.regs, ops = spec.ops || [];
     const sew = spec.sew || 32;
-    const W = 396, H = 30, gapA = 40;
+    const W = 396, H = 30;
     const M = 24;                       // symmetric side margin → strip centered in svg
     const svgW = W + 2*M;
     const x = M;
     const ctxLines = Array.isArray(spec.ctx) ? spec.ctx : [spec.ctx];
     const labelY = 13 + ctxLines.length*13.5 + 4;   // bit labels below ctx lines
     const y0 = labelY + 33;
-    const stripBottom = y0 + regs.length*(H+gapA) - gapA;
-    const legendY = stripBottom + 20;
-    const totalH = spec.applyMask ? legendY + 8 : stripBottom + 8;
     const cellsOf = r => r.maskrow ? rowCells(sew) : (r.single ? 1 : rowCells(r.sew || sew));
     const cells = regs.map(cellsOf);
     const shared = cells.every(c => c === cells[0]);
+    const gapA = shared ? 40 : 56;   // per-row labels need room under the op symbol
+    const stripBottom = y0 + regs.length*(H+gapA) - gapA;
+    const legendY = stripBottom + 20;
+    const totalH = spec.applyMask ? legendY + 8 : stripBottom + 8;
     const labelsFor = (c, rsew) => c === 1 ? [rsew-1, 0] : (()=>{
       const b = [GBITS-1];
       for(let k=1;k<c;k++) b.push(GBITS - 1 - k*rsew);
@@ -129,16 +130,16 @@ window.RISCV = window.RISCV || {};
     vwaddu:"+", vwadd:"+", vwsubu:"−", vwsub:"−",
     "vwaddu.w":"+", "vwadd.w":"+", "vwsubu.w":"−", "vwsub.w":"−",
     vwmulu:"×", vwmulsu:"×", vwmul:"×",
-    vwmaccu:"MAC", vwmacc:"MAC", vwmaccus:"MAC", vwmaccsu:"MAC",
+    vwmaccu:"×", vwmacc:"×", vwmaccus:"×", vwmaccsu:"×",
     vrgather:"idx", vrgatherei16:"idx",
     vadc:"+c", vmadc:"carry", vsbc:"−b", vmsbc:"borrow",
     vmerge:"?:",
     vmseq:"==", vmsne:"!=", vmsltu:"<", vmslt:"<", vmsleu:"≤", vmsle:"≤", vmsgtu:">", vmsgt:">",
     vfadd:"+", vfsub:"−", vfmin:"min", vfmax:"max", vfsgnj:"sgn", vfsgnjn:"sgn", vfsgnjx:"sgn",
     vfdiv:"÷", vfrdiv:"÷", vfmul:"×", vfrsub:"−",
-    vfmadd:"MAC", vfnmadd:"N-MAC", vfmsub:"M-SUB", vfnmsub:"N-M-SUB",
-    vfmacc:"MAC", vfnmacc:"N-MAC", vfmsac:"M-SUB", vfnmsac:"N-M-SUB",
-    vfwmul:"×", vfwmacc:"MAC", vfwnmacc:"N-MAC", vfwmsac:"M-SUB", vfwnmsac:"N-M-SUB",
+    vfmadd:"×", vfnmadd:"−×", vfmsub:"×−", vfnmsub:"−×−",
+    vfmacc:"×", vfnmacc:"−×", vfmsac:"×−", vfnmsac:"−×−",
+    vfwmul:"×", vfwmacc:"×", vfwnmacc:"−×", vfwmsac:"×−", vfwnmsac:"−×−",
     vfwadd:"+", vfwsub:"−", "vfwadd.w":"+", "vfwsub.w":"−",
     vmfeq:"==", vmfne:"!=", vmflt:"<", vmfle:"≤", vmfgt:">", vmfge:"≥",
     vredsum:"Σ", vredand:"∧", vredor:"∨", vredxor:"⊕",
@@ -193,7 +194,7 @@ window.RISCV = window.RISCV || {};
     vwadd(container){ vflow(container, {
       ctx: ctxS("vwadd.vv — widening add: 32b + 32b → 64b"),
       regs:[{label:"vs2", sub:grp(8,32)}, {label:"vs1", sub:grp(8,32)},
-            MASKBIT, {label:"vd", sub:"8×64b (4 shown)", cls:"dst"}],
+            MASKBIT, {label:"vd", sub:"8×64b (4 shown)", cls:"dst", sew:64}],
       ops:["+","","="], sew:32, applyMask:true,
     }); },
     vnsrl(container){ vflow(container, {
@@ -345,7 +346,7 @@ window.RISCV = window.RISCV || {};
         ctx: ctxOf(inst, true),
         regs:[{label:"vs2", sub:"mask bits", maskrow:true},
               toEl ? {label:"vd", sub:grp(8,32), cls:"dst"} : {label:"vd", sub:"mask result", cls:"dst", maskrow:true}],
-        ops:[OPS[base]||"op","="], sew:32, applyMask:true,
+        ops:[OPS[base]||"op"], sew:32, applyMask:true,
       });
     },
 
@@ -355,7 +356,7 @@ window.RISCV = window.RISCV || {};
         ctx: ctxOf(inst, true),
         regs:[{label:"vs2", sub:"mask bits", maskrow:true},
               {label:"rd", sub:"XLEN bits", cls:"dst", single:true}],
-        ops:[base === "vcpop" ? "count bits" : "first index","="], sew:32, applyMask:true,
+        ops:[base === "vcpop" ? "count bits" : "first index"], sew:32, applyMask:true,
       });
     },
 
