@@ -16,6 +16,7 @@ window.RISCV = window.RISCV || {};
   const MONO = "ui-monospace,Menlo,Consolas,monospace";
   const SANS = "ui-sans-serif,system-ui,sans-serif";
   const CAP = 8;
+  const SW = 99;               // scalar box width (32b / XLEN registers are small, not a full group)
   const MASK = [1,0,1,1,0,1,0,1];
 
   const rowCells = sew => Math.min(Math.max(1, Math.floor(GBITS/sew)), CAP);
@@ -30,16 +31,18 @@ window.RISCV = window.RISCV || {};
     const ctxLines = Array.isArray(spec.ctx) ? spec.ctx : [spec.ctx];
     const labelY = 13 + ctxLines.length*13.5 + 4;   // bit labels below ctx lines
     const y0 = labelY + 33;
-    const cellsOf = r => r.maskrow ? rowCells(sew) : (r.single ? 1 : rowCells(r.sew || sew));
+    const cellsOf = r => r.maskrow ? rowCells(sew) : (r.single ? 1 : Math.min(Math.max(1, Math.floor((r.bits || GBITS)/(r.sew || sew))), CAP));
     const cells = regs.map(cellsOf);
-    const shared = cells.every(c => c === cells[0]);
+    const nM = regs.filter(r => !r.maskrow);
+    const shared = !spec.nolabels && nM.length > 0 && nM[0] === regs[0] &&
+      nM.every(r => cellsOf(r) === cellsOf(nM[0]) && (r.sew||sew) === (nM[0].sew||sew) && (r.bits||GBITS) === (nM[0].bits||GBITS));
     const gapA = shared ? 40 : 56;   // per-row labels need room under the op symbol
     const stripBottom = y0 + regs.length*(H+gapA) - gapA;
     const legendY = stripBottom + 20;
     const totalH = spec.applyMask ? legendY + 8 : stripBottom + 8;
-    const labelsFor = (c, rsew) => c === 1 ? [rsew-1, 0] : (()=>{
-      const b = [GBITS-1];
-      for(let k=1;k<c;k++) b.push(GBITS - 1 - k*rsew);
+    const labelsFor = (c, rsew, rbits) => c === 1 ? [rsew-1, 0] : (()=>{
+      const b = [rbits-1];
+      for(let k=1;k<c;k++) b.push(rbits - 1 - k*rsew);
       b.push(0);
       return b;
     })();
@@ -49,8 +52,8 @@ window.RISCV = window.RISCV || {};
       s += `<text x="${x+2}" y="${13+i*13.5}" font-size="${i===0?'10.5':'10'}" fill="${i===0?'#57606a':'#8b949e'}" font-family="${SANS}">${esc(line)}</text>`;
     });
     if(shared){
-      labelsFor(cells[0], sew).forEach((b,k)=>{
-        const bx = x + k*(W/cells[0]);
+      labelsFor(cells[0], sew, GBITS).forEach((b,k)=>{
+        const bx = x + k*(cells[0] === 1 ? SW : W/cells[0]);
         const anchor = k===0 ? 'start' : (k===cells[0] ? 'end' : 'middle');
         s += `<text x="${bx}" y="${labelY}" font-size="9.5" fill="#57606a" font-family="${MONO}" text-anchor="${anchor}">${b}</text>`;
       });
@@ -59,7 +62,7 @@ window.RISCV = window.RISCV || {};
     regs.forEach((r,i)=>{
       const c = COLORS[r.cls || "src"], cw = cells[i], ew = W/cw;
       if(!shared && cw > 1 && !r.maskrow){
-        labelsFor(cw, r.sew || sew).forEach((b,k)=>{
+        labelsFor(cw, r.sew || sew, r.bits || GBITS).forEach((b,k)=>{
           const bx = x + k*ew;
           const anchor = k===0 ? 'start' : (k===cw ? 'end' : 'middle');
           s += `<text x="${bx}" y="${y-19}" font-size="9.5" fill="#57606a" font-family="${MONO}" text-anchor="${anchor}">${b}</text>`;
@@ -69,7 +72,8 @@ window.RISCV = window.RISCV || {};
       s += `<text x="${x}" y="${y-6}" font-size="11" font-weight="600" fill="${c.text}" font-family="${MONO}">${esc(r.label)}</text>`;
       if(r.sub) s += `<text x="${x+W}" y="${y-6}" font-size="10" fill="#6e7781" font-family="${SANS}" text-anchor="end">${esc(r.sub)}</text>`;
       // strip
-      s += `<rect x="${x}" y="${y}" width="${W}" height="${H}" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.4"/>`;
+      const bw = r.single ? SW : W;
+      s += `<rect x="${x}" y="${y}" width="${bw}" height="${H}" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.4"/>`;
       if(r.maskrow){
         MASK.slice(0,cw).forEach((b,k)=>{
           const bx = x+k*ew, bw = ew;
@@ -80,9 +84,10 @@ window.RISCV = window.RISCV || {};
         // masked-off overlay first, then division lines on top
         if(spec.applyMask) MASK.slice(0,cw).forEach((b,k)=>{ if(!b) s += `<rect x="${x+k*ew+0.5}" y="${y+0.5}" width="${ew-1}" height="${H-1}" fill="#d8dee4" fill-opacity="0.9"/>`; });
         for(let k=1;k<cw;k++) s += `<line x1="${x+k*ew}" y1="${y}" x2="${x+k*ew}" y2="${y+H}" stroke="${c.stroke}" stroke-opacity="0.35" stroke-width="1"/>`;
-        if(r.text) s += `<text x="${x+ew/2}" y="${y+H/2+3.5}" text-anchor="middle" font-size="9.5" fill="${c.text}" fill-opacity="0.8" font-family="${MONO}">${esc(r.text)}</text>`;
+        if(r.text && !r.single) s += `<text x="${x+ew/2}" y="${y+H/2+3.5}" text-anchor="middle" font-size="9.5" fill="${c.text}" fill-opacity="0.8" font-family="${MONO}">${esc(r.text)}</text>`;
+        if(r.text && r.single) s += `<text x="${x+SW/2}" y="${y+H/2+3.5}" text-anchor="middle" font-size="9.5" fill="${c.text}" fill-opacity="0.8" font-family="${MONO}">${esc(r.text)}</text>`;
       }
-      const full = rowCells(r.sew || sew);
+      const full = Math.min(Math.max(1, Math.floor((r.bits || GBITS)/(r.sew || sew))), CAP);
       if(full > cw && !r.maskrow && !r.single) s += `<text x="${x+W}" y="${y+H-4}" font-size="9" fill="${c.text}" fill-opacity="0.5" font-family="${SANS}" text-anchor="end">… ×${full}</text>`;
       if(i < ops.length){
         const oy = y + H + 14;
@@ -174,9 +179,9 @@ window.RISCV = window.RISCV || {};
       const key = inst.diagram;
       if(key === "fmadd"){ vflow(container, {
         ctx: "FMADD.S — fused scalar FP multiply-add: f[rd] = f[rs1] × f[rs2] + f[rs3]",
-        regs:[{label:"f[rs1]", sub:"32b"}, {label:"f[rs2]", sub:"32b"},
-              {label:"f[rs3]", sub:"32b"}, {label:"f[rd]", sub:"32b result", cls:"dst"}],
-        ops:["×","+","="], sew:32, single:true,
+        regs:[{label:"f[rs1]", sub:"32b", single:true}, {label:"f[rs2]", sub:"32b", single:true},
+              {label:"f[rs3]", sub:"32b", single:true}, {label:"f[rd]", sub:"32b result", cls:"dst", single:true}],
+        ops:["×","+","="], sew:32,
       }); return; }
       const fn = this[key];
       if(fn) return fn.call(this, container, inst);
@@ -194,12 +199,12 @@ window.RISCV = window.RISCV || {};
     vwadd(container){ vflow(container, {
       ctx: ctxS("vwadd.vv — widening add: 32b + 32b → 64b"),
       regs:[{label:"vs2", sub:grp(8,32)}, {label:"vs1", sub:grp(8,32)},
-            MASKBIT, {label:"vd", sub:"8×64b (4 shown)", cls:"dst", sew:64}],
+            MASKBIT, {label:"vd", sub:"8×64b", cls:"dst", sew:64, bits:512}],
       ops:["+","","="], sew:32, applyMask:true,
     }); },
     vnsrl(container){ vflow(container, {
       ctx: ctxS("vnsrl.wi — narrowing shift: 64b → 32b"),
-      regs:[{label:"vs2", sub:"8×64b (4 shown)", sew:64}, MASKBIT,
+      regs:[{label:"vs2", sub:"8×64b", sew:64, bits:512}, MASKBIT,
             {label:"vd", sub:grp(8,32), cls:"dst"}],
       ops:["≫","="], sew:32, applyMask:true,
     }); },
@@ -293,12 +298,12 @@ window.RISCV = window.RISCV || {};
       const widen = WIDEN.has(base) && !acc;
       const narrow = NARROW.has(base);
       const sewS = narrow ? 64 : 32, sewD = (widen || acc) ? 64 : (narrow ? 32 : 32);
-      const srcRow = {label:"vs2", sub: narrow ? "8×64b (4 shown)" : grp(8,32), sew:narrow ? 64 : 32};
-      const dstRow = {label: acc ? "vd (result)" : "vd", sub: (widen || acc) ? "8×64b (4 shown)" : grp(8,32), cls:"dst", sew: sewD};
+      const srcRow = {label:"vs2", sub: narrow ? "8×64b" : grp(8,32), sew:narrow ? 64 : 32, bits:narrow ? 512 : undefined};
+      const dstRow = {label: acc ? "vd (result)" : "vd", sub: (widen || acc) ? "8×64b" : grp(8,32), cls:"dst", sew: sewD, bits:(widen || acc) ? 512 : undefined};
       const regs = acc
         ? [srcRow,
            src,
-           {label:"vd (acc)", sub:(widen||acc)?"8×64b (4 shown)":"acc", sew:sewD},
+           {label:"vd (acc)", sub:(widen||acc)?"8×64b":"acc", sew:sewD, bits:(widen||acc)?512:undefined},
            MASKBIT, dstRow]
         : [srcRow, src, MASKBIT, dstRow];
       const ops = acc ? [op, "+", "", "="] : [op, "", "="];
@@ -434,7 +439,7 @@ window.RISCV = window.RISCV || {};
       vflow(container, {
         ctx: ctxOf(inst, false),
         regs:[src, ...typ, {label:"rd", sub:"vl + vtype (XLEN bits)", cls:"dst", single:true}],
-        ops:["","set"], sew:32, applyMask:false,
+        ops:["","set"], sew:32, applyMask:false, nolabels:true,
       });
     },
 
@@ -444,13 +449,14 @@ window.RISCV = window.RISCV || {};
       const widen = /^vfwcvt|^vfw/.test(base) && !narrow;
       const extF = (base.match(/vf([248])$/)||[])[1];
       const srcSew = extF ? 32/(+extF) : (narrow ? 64 : 32);
+      const srcBits = extF ? 128/(+extF) : (narrow ? 512 : undefined);
       const uf = base === "vfsqrt" ? "√" : base === "vfrsqrt7" ? "1/√" : base === "vfrec7" ? "1/x"
                : base === "vfclass" ? "class" : kind === "ext" ? (base.startsWith("vzext")?"zext":"sext") : "cvt";
       vflow(container, {
         ctx: ctxOf(inst, true),
-        regs:[{label:"vs2", sub: narrow ? "8×64b (4 shown)" : (extF ? `${rowCells(srcSew)}×${srcSew}b` : grp(8,32)), sew: srcSew},
+        regs:[{label:"vs2", sub: narrow ? "8×64b" : (extF ? `${rowCells(srcBits/srcSew)}×${srcSew}b` : grp(8,32)), sew: srcSew, bits: srcBits},
               MASKBIT,
-              {label:"vd", sub: widen ? "8×64b (4 shown)" : grp(8,32), cls:"dst", sew: widen ? 64 : 32}],
+              {label:"vd", sub: widen ? "8×64b" : grp(8,32), cls:"dst", sew: widen ? 64 : 32, bits: widen ? 512 : undefined}],
         ops:["","→"], sew:32, applyMask:true,
       });
     },
