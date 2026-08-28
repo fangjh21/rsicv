@@ -68,6 +68,73 @@
     return s;
   }
 
+  function channelsSVG(){
+    // 8 ACE channels between a cache master and the interconnect (+ downstream to memory)
+    const N = "#0969da", SN = "#8250df";
+    let s = `<svg width="760" height="360" viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img">`;
+    s += `<defs>
+      <marker id="cn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${N}"/></marker>
+      <marker id="cs" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${SN}"/></marker>
+    </defs>`;
+    const box = (x,y,w,h,t) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="#f6f8fa" stroke="#d0d7de"/><text x="${x+w/2}" y="${y+h/2+4}" text-anchor="middle" font-size="13" font-weight="600" fill="#24292f" font-family="var(--sans)">${t}</text>`;
+    s += box(20,20,150,320,"Requester<br/>(RN / cache)");
+    s += box(300,80,170,200,"Interconnect<br/>(ICN)");
+    s += box(600,120,140,120,"Memory");
+    const arrow = (x1,y1,x2,y2,label,c,marker) => {
+      const mx=(x1+x2)/2, my=(y1+y2)/2, dir = x2>x1?1:-1;
+      s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="1.6" marker-end="url(#${marker})"/>`;
+      s += `<text x="${mx}" y="${my-4}" text-anchor="middle" font-size="10" fill="${c}" font-family="var(--mono)">${label}</text>`;
+    };
+    // master -> ICN (write/read requests)
+    arrow(170,48,300,118,"AW",N,"cn");
+    arrow(170,80,300,132,"AR",N,"cn");
+    arrow(170,112,300,146,"W",N,"cn");
+    // snoop trio (ICN <-> master)
+    arrow(300,160,170,144,"AC",SN,"cs");
+    arrow(170,176,300,174,"CR",SN,"cs");
+    arrow(170,208,300,188,"CD",SN,"cs");
+    // ICN -> master (responses)
+    arrow(300,202,170,240,"B",N,"cn");
+    arrow(300,216,170,272,"R",N,"cn");
+    // downstream to memory
+    arrow(470,150,600,160,"AW/W",N,"cn");
+    arrow(600,180,470,180,"B",N,"cn");
+    arrow(470,210,600,200,"AR",N,"cn");
+    arrow(600,220,470,220,"R",N,"cn");
+    s += `<text x="55" y="356" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--sans)">blue = AXI read/write channels · purple = ACE snoop channels</text>`;
+    s += `</svg>`;
+    return s;
+  }
+
+  function statesSVG(){
+    // classic ACE cache-line state diagram (I / UC / UD / SC / SD)
+    let s = `<svg width="760" height="360" viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img">`;
+    s += `<defs><marker id="st" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0969da"/></marker></defs>`;
+    const box = (x,y,w,h,n,f,fill) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${fill}" stroke="#d0d7de"/><text x="${x+w/2}" y="${y+h/2+1}" text-anchor="middle" font-size="14" font-weight="700" fill="#24292f" font-family="var(--mono)">${n}</text><text x="${x+w/2}" y="${y+h/2+16}" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--sans)">${f}</text>`;
+    const arrow = (x1,y1,x2,y2,label,lx,ly) => {
+      s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#0969da" stroke-width="1.5" marker-end="url(#st)"/>`;
+      s += `<text x="${lx}" y="${ly}" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--mono)">${label}</text>`;
+    };
+    // boxes
+    s += box(40,40,130,56,"UC","Unique Clean","#eef6ff");
+    s += box(315,40,130,56,"UD","Unique Dirty","#fff3d6");
+    s += box(590,40,130,56,"SD","Shared Dirty","#fff3d6");
+    s += box(40,300,130,56,"SC","Shared Clean","#eef6ff");
+    s += box(590,300,130,56,"I","Invalid","#ffffff");
+    // transitions
+    arrow(170,68,315,68,"write",242,60);
+    arrow(445,68,590,68,"ReadShared snoop",517,60);
+    arrow(655,96,655,300,"MakeInvalid",685,200);
+    arrow(590,328,170,328,"ReadShared / ReadClean",380,318);
+    arrow(105,300,105,96,"MakeUnique / CleanUnique",58,200);
+    arrow(545,300,190,96,"ReadUnique / ReadOnce",330,190);
+    arrow(380,96,545,300,"WriteBack",500,195);
+    arrow(590,96,145,300,"WriteClean",330,250);
+    s += `<text x="380" y="356" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--sans)">evict / snoop invalidate return the line to I</text>`;
+    s += `</svg>`;
+    return s;
+  }
+
   const S = {};
 
   S.overview = () => `<h1>AMBA ACE Protocol Reference</h1>
@@ -84,6 +151,7 @@
   </div>
 
   <h2>Cache-line states</h2>
+  <div class="diagram">${statesSVG()}</div>
   <div class="card">
     <table>
       <tr><th>State</th><th>Meaning</th><th>Silently modifiable</th></tr>
@@ -110,19 +178,9 @@
   S.protocol = () => `<h1>Protocol</h1>
 
   <h2>Channels</h2>
+  <div class="diagram">${channelsSVG()}</div>
   <div class="card">
-    <table>
-      <tr><th>Channel</th><th>Direction</th><th>Purpose</th></tr>
-      <tr><td><code>AW</code> write address</td><td>master → interconnect</td><td>Write address/attributes (ACE adds <code>AWSNOOP/AWDOMAIN/AWUNIQUE</code>)</td></tr>
-      <tr><td><code>W</code> write data</td><td>master → interconnect</td><td>Write data + <code>WSTRB</code> + <code>WLAST</code></td></tr>
-      <tr><td><code>B</code> write response</td><td>interconnect → master</td><td>Write completion (ACE adds <code>WACK</code>)</td></tr>
-      <tr><td><code>AR</code> read address</td><td>master → interconnect</td><td>Read address/attributes (ACE adds <code>ARSNOOP/ARDOMAIN</code>)</td></tr>
-      <tr><td><code>R</code> read data</td><td>interconnect → master</td><td>Read data + response (ACE adds <code>RACK</code>)</td></tr>
-      <tr><td><code>AC</code> snoop address</td><td>interconnect → cache</td><td>Snoop request (<code>ACADDR/ACSNOOP/ACPROT</code>)</td></tr>
-      <tr><td><code>CR</code> snoop response</td><td>cache → interconnect</td><td>Snoop result (<code>CRRESP</code>)</td></tr>
-      <tr><td><code>CD</code> snoop data</td><td>cache → interconnect</td><td>Dirty line returned during a snoop</td></tr>
-    </table>
-    <p><b>AW/W/B</b> form the write path, <b>AR/R</b> the read path, <b>AC/CR/CD</b> the snoop path.</p>
+    <p><b>AW/W/B</b> form the write path, <b>AR/R</b> the read path, <b>AC/CR/CD</b> the snoop path — a snoop enters the cache over AC and returns the result over CR and the dirty data over CD.</p>
   </div>
 
   <h2>VALID / READY handshake</h2>
