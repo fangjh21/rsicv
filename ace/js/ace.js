@@ -49,7 +49,7 @@
   function c910SVG(){
     const CORE="#e1f5fe", CB="#01579b", PIU="#fff9c4", PB="#b45309", CIU="#f3e5f5", IB="#6a1b9a";
     const L2="#fff3e0", LB="#e65100", BUS="#e8f5e9", BB="#1b5e20";
-    let s = `<svg width="940" height="560" viewBox="0 0 940 560" xmlns="http://www.w3.org/2000/svg" role="img">`;
+    let s = `<svg width="940" height="640" viewBox="0 0 940 640" xmlns="http://www.w3.org/2000/svg" role="img">`;
     s += `<defs><marker id="ca" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#57606a"/></marker></defs>`;
     const box = (x,y,w,h,title,lines,fill,border) => {
       let t = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="${fill}" stroke="${border}" stroke-width="1.4"/>`;
@@ -59,53 +59,49 @@
       return t;
     };
     const ar = (x1,y1,x2,y2,label) => { const mx=(x1+x2)/2,my=(y1+y2)/2; s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#57606a" stroke-width="1.5" marker-end="url(#ca)"/>`; if(label) s += `<text x="${mx}" y="${my-5}" text-anchor="middle" font-size="10" fill="#57606a" font-family="var(--mono)" stroke="#ffffff" stroke-width="3" paint-order="stroke">${label}</text>`; };
-    // cluster
-    s += `<rect x="20" y="18" width="900" height="196" rx="12" fill="none" stroke="${CB}" stroke-dasharray="6 4" stroke-width="1.4"/>`;
+    // cluster: cores + PIU + CIU + L2
+    s += `<rect x="20" y="18" width="900" height="400" rx="12" fill="none" stroke="${CB}" stroke-dasharray="6 4" stroke-width="1.4"/>`;
     s += `<text x="36" y="40" font-size="13" font-weight="700" fill="${CB}" font-family="var(--sans)">C910 cluster · multi-core</text>`;
-    // cores + PIUs
-    s += box(50,46,250,84,"Core 0",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
-    s += box(340,46,250,84,"Core 1",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
-    s += box(630,46,250,84,"Core N",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
-    s += box(50,150,250,46,"PIU 0","processor interface unit",PIU,PB);
-    s += box(340,150,250,46,"PIU 1","processor interface unit",PIU,PB);
-    s += box(630,150,250,46,"PIU N","processor interface unit",PIU,PB);
-    // cores -> PIUs (vertical)
-    ar(175,130,175,150,"coherent");
-    ar(465,130,465,150,"");
-    ar(755,130,755,150,"");
-    // PIUs -> CIU (clean fan)
-    ar(175,196,175,250,"PIU → CIU");
-    ar(465,196,300,250,"");
-    ar(755,196,280,250,"");
-    // row 3
-    s += box(50,250,250,84,"CIU",["coherence interface unit","arbitrate / forward snoop"],CIU,IB);
-    s += box(340,250,220,84,"L2 cache",["shared 1 MB · inclusive"],L2,LB);
-    s += box(630,250,250,84,"ACE bus",["on-chip interconnect · snoop"],BUS,BB);
-    ar(300,292,340,292,"CIU → L2");
-    ar(755,214,755,250,"");   // cluster -> ACE bus (clean vertical)
-    // row 4
-    s += box(340,400,220,66,"Memory",["DDR / I/O"],BUS,BB);
-    s += box(630,400,250,66,"Other ACE",["accelerator / other cluster"],BUS,BB);
-    ar(755,334,755,400,"");
-    ar(755,334,470,400,"to memory");
+    s += box(50,46,250,82,"Core 0",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
+    s += box(340,46,250,82,"Core 1",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
+    s += box(630,46,250,82,"Core N",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
+    s += box(50,150,250,44,"PIU 0","processor interface unit",PIU,PB);
+    s += box(340,150,250,44,"PIU 1","processor interface unit",PIU,PB);
+    s += box(630,150,250,44,"PIU N","processor interface unit",PIU,PB);
+    s += box(50,234,250,84,"CIU",["coherence interface unit","arbitrate / forward snoop"],CIU,IB);
+    s += box(350,234,220,84,"L2 cache",["shared 1 MB · inclusive"],L2,LB);
+    ar(175,128,175,150,"coherent");
+    ar(465,128,465,150,"");
+    ar(755,128,755,150,"");
+    ar(175,194,175,234,"PIU → CIU");
+    ar(465,194,300,234,"");
+    ar(755,194,320,234,"");
+    ar(300,276,350,276,"CIU → L2");
+    // cluster -> ACE bus (outside), on-chip interconnect
+    ar(880,418,880,470,"");
+    s += box(640,470,280,74,"ACE bus",["on-chip interconnect · snoop"],BUS,BB);
+    s += box(340,584,220,50,"Memory",["DDR / I/O"],BUS,BB);
+    s += box(640,584,280,50,"Other ACE",["accelerator / other cluster"],BUS,BB);
+    ar(640,507,470,584,"to memory");
+    ar(780,544,780,584,"");
     s += `</svg>`;
     return s;
   }
 
   function channelsSVG(){
-    const N = "#0969da", SN = "#8250df", GB="#57606a";
+    const N="#0969da", SN="#8250df";
+    const CPU="#e1f5fe", CPUB="#01579b", ICN="#f3e5f5", ICNB="#6a1b9a", MEM="#e8f5e9", MEMB="#1b5e20";
     let s = `<svg width="820" height="360" viewBox="0 0 820 360" xmlns="http://www.w3.org/2000/svg" role="img">`;
     s += `<defs>
       <marker id="cn" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L11 6 L1 11 z" fill="${N}"/></marker>
       <marker id="cs" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L11 6 L1 11 z" fill="${SN}"/></marker>
       <marker id="cm" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L11 6 L1 11 z" fill="${N}"/></marker>
     </defs>`;
-    const box = (x,y,w,h,title,sub,accent) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.3"/><rect x="${x}" y="${y}" width="5" height="${h}" rx="2" fill="${accent}"/><text x="${x+w/2+3}" y="${y+h/2-4}" text-anchor="middle" font-size="14" font-weight="700" fill="#24292f" font-family="var(--sans)">${title}</text><text x="${x+w/2+3}" y="${y+h/2+15}" text-anchor="middle" font-size="10" fill="#57606a" font-family="var(--mono)">${sub}</text>`;
-    const ar = (x1,x2,y,label,c,dir,mk) => { const xa=dir==="r"?x2:x1, xb=dir==="r"?x1:x2; s+=`<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${c}" stroke-width="2.4" stroke-linecap="round" marker-end="url(#${mk})"/><text x="${(x1+x2)/2}" y="${y-7}" text-anchor="middle" font-size="11" fill="${c}" font-family="var(--mono)" stroke="#ffffff" stroke-width="3.5" paint-order="stroke">${label}</text>`; };
-    // participants
-    s += box(40,44,160,262,"CPU · L1","requester (RN)",N);
-    s += box(320,44,180,262,"Interconnect","coherence point",GB);
-    s += box(620,90,150,170,"Memory","controller · DDR",GB);
+    const box = (x,y,w,h,title,sub,fill,border) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="${fill}" stroke="${border}" stroke-width="1.6"/><text x="${x+w/2}" y="${y+h/2-3}" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933" font-family="var(--sans)">${title}</text><text x="${x+w/2}" y="${y+h/2+16}" text-anchor="middle" font-size="10.5" fill="#4b5563" font-family="var(--mono)">${sub}</text>`;
+    const ar = (x1,x2,y,label,c,dir,mk) => { s+=`<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${c}" stroke-width="2.4" stroke-linecap="round" marker-end="url(#${mk})"/><text x="${(x1+x2)/2}" y="${y-7}" text-anchor="middle" font-size="11" fill="${c}" font-family="var(--mono)" stroke="#ffffff" stroke-width="3.5" paint-order="stroke">${label}</text>`; };
+    s += box(40,44,160,262,"CPU · L1","requester (RN)",CPU,CPUB);
+    s += box(320,44,180,262,"Interconnect","coherence point",ICN,ICNB);
+    s += box(620,90,150,170,"Memory","controller · DDR",MEM,MEMB);
     const Y=[84,114,144,174,204,234,264,292];
     ar(200,320,Y[0],"AW",N,"r","cn");
     ar(200,320,Y[1],"AR",N,"r","cn");
@@ -115,13 +111,11 @@
     ar(200,320,Y[5],"CD",SN,"r","cs");
     ar(200,320,Y[6],"B",N,"l","cn");
     ar(200,320,Y[7],"R",N,"l","cn");
-    // downstream
     const M=[140,180,220,258];
     ar(500,620,M[0],"AW/W",N,"r","cm");
     ar(500,620,M[1],"AR",N,"r","cm");
     ar(620,500,M[2],"B",N,"l","cm");
     ar(620,500,M[3],"R",N,"l","cm");
-    // legend
     s += `<line x1="470" y1="24" x2="502" y2="24" stroke="${N}" stroke-width="2.6" stroke-linecap="round"/><text x="466" y="28" text-anchor="end" font-size="10.5" fill="${N}" font-family="var(--sans)">AXI read / write</text>`;
     s += `<line x1="512" y1="24" x2="544" y2="24" stroke="${SN}" stroke-width="2.6" stroke-linecap="round"/><text x="550" y="28" font-size="10.5" fill="${SN}" font-family="var(--sans)">snoop (AC/CR/CD)</text>`;
     s += `</svg>`;
