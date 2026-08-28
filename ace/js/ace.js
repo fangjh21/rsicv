@@ -129,7 +129,7 @@
   }
 
   function statesSVG(){
-    let s = `<svg width="820" height="470" viewBox="0 0 820 470" xmlns="http://www.w3.org/2000/svg" role="img">`;
+    let s = `<svg width="860" height="480" viewBox="0 0 860 480" xmlns="http://www.w3.org/2000/svg" role="img">`;
     s += `<defs><marker id="st" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0969da"/></marker></defs>`;
     const box = (x,y,n,f,fill) => `<rect x="${x}" y="${y}" width="170" height="76" rx="8" fill="${fill}" stroke="#d0d7de" stroke-width="1.4"/><text x="${x+85}" y="${y+34}" text-anchor="middle" font-size="17" font-weight="700" fill="#24292f" font-family="var(--mono)">${n}</text><text x="${x+85}" y="${y+56}" text-anchor="middle" font-size="11" fill="#57606a" font-family="var(--sans)">${f}</text>`;
     const lab = (x,y,t) => `<text x="${x}" y="${y}" text-anchor="middle" font-size="11.5" fill="#57606a" font-family="var(--mono)" stroke="#ffffff" stroke-width="3" paint-order="stroke">${t}</text>`;
@@ -145,8 +145,8 @@
     s += ar(510,110,604,158,"ReadShared snoop",560,128);
     s += ar(685,196,685,354,"MakeInvalid",745,286);
     s += ar(600,388,220,388,"ReadShared / ReadClean",410,378);
-    s += ar(145,350,145,192,"MakeUnique / CleanUnique",62,268);
-    s += `<text x="410" y="442" text-anchor="middle" font-size="11.5" fill="#57606a" font-family="var(--sans)" stroke="#ffffff" stroke-width="3" paint-order="stroke">Also: ReadUnique I→UC, WriteBack UD→I, WriteClean SD→SC, and eviction / snoop invalidate → I (see table)</text>`;
+    s += ar(145,350,145,192,"MakeUnique / CleanUnique",175,268);
+    s += `<text x="430" y="452" text-anchor="middle" font-size="11.5" fill="#57606a" font-family="var(--sans)" stroke="#ffffff" stroke-width="3" paint-order="stroke">Also: ReadUnique I→UC, WriteBack UD→I, WriteClean SD→SC, and eviction / snoop invalidate → I (see table)</text>`;
     s += `</svg>`;
     return s;
   }
