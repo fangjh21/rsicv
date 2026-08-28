@@ -96,6 +96,61 @@
     return s;
   }
 
+  function channelsSVG(){
+    const N = "#0969da", SN = "#8250df";
+    let s = `<svg width="760" height="330" viewBox="0 0 760 330" xmlns="http://www.w3.org/2000/svg" role="img">`;
+    s += `<defs>
+      <marker id="cn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${N}"/></marker>
+      <marker id="cs" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${SN}"/></marker>
+    </defs>`;
+    const box = (x,y,w,h,title,sub) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="#f6f8fa" stroke="#d0d7de"/><text x="${x+w/2}" y="${y+h/2-2}" text-anchor="middle" font-size="13" font-weight="600" fill="#24292f" font-family="var(--sans)">${title}</text><text x="${x+w/2}" y="${y+h/2+15}" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--mono)">${sub}</text>`;
+    const arrow = (y,label,dir,c,marker) => {
+      const x1 = dir==="r" ? 182 : 332, x2 = dir==="r" ? 332 : 182;
+      s += `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${c}" stroke-width="2" marker-end="url(#${marker})"/>`;
+      s += `<text x="${(x1+x2)/2}" y="${y-6}" text-anchor="middle" font-size="10.5" fill="${c}" font-family="var(--mono)">${label}</text>`;
+    };
+    s += box(30,50,150,220,"CPU 0 · L1","requester (RN)");
+    s += box(330,50,170,220,"Interconnect · L2","coherence point");
+    s += box(600,95,140,130,"Memory","controller · DDR");
+    arrow(80,"AW","r",N,"cn");
+    arrow(106,"AR","r",N,"cn");
+    arrow(132,"W","r",N,"cn");
+    arrow(158,"AC","l",SN,"cs");
+    arrow(184,"CR","r",SN,"cs");
+    arrow(210,"CD","r",SN,"cs");
+    arrow(236,"B","l",N,"cn");
+    arrow(262,"R","l",N,"cn");
+    const far = (y1,label,lr) => { const x1=lr? 600:500, x2=lr? 500:600, my=(x1+x2)/2; s+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y1}" stroke="${N}" stroke-width="2" marker-end="url(#cn)"/><text x="${my}" y="${y1-6}" text-anchor="middle" font-size="10.5" fill="${N}" font-family="var(--mono)">${label}</text>`; };
+    far(140,"AW/W",0); far(190,"AR",0); far(165,"B",1); far(215,"R",1);
+    s += `<line x1="466" y1="34" x2="496" y2="34" stroke="${N}" stroke-width="2"/><text x="462" y="38" text-anchor="end" font-size="9.5" fill="${N}" font-family="var(--sans)">AXI read / write</text>`;
+    s += `<line x1="512" y1="34" x2="542" y2="34" stroke="${SN}" stroke-width="2"/><text x="548" y="38" font-size="9.5" fill="${SN}" font-family="var(--sans)">snoop (AC/CR/CD)</text>`;
+    s += `</svg>`;
+    return s;
+  }
+
+  function statesSVG(){
+    let s = `<svg width="760" height="360" viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img">`;
+    s += `<defs><marker id="st" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0969da"/></marker></defs>`;
+    const box = (x,y,w,h,n,f,fill) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${fill}" stroke="#d0d7de"/><text x="${x+w/2}" y="${y+h/2+1}" text-anchor="middle" font-size="14" font-weight="700" fill="#24292f" font-family="var(--mono)">${n}</text><text x="${x+w/2}" y="${y+h/2+16}" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--sans)">${f}</text>`;
+    const arrow = (x1,y1,x2,y2,label,lx,ly) => { s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#0969da" stroke-width="1.5" marker-end="url(#st)"/><text x="${lx}" y="${ly}" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--mono)">${label}</text>`; };
+    s += box(40,40,130,56,"UC","Unique Clean","#eef6ff");
+    s += box(315,40,130,56,"UD","Unique Dirty","#fff3d6");
+    s += box(590,40,130,56,"SD","Shared Dirty","#fff3d6");
+    s += box(40,300,130,56,"SC","Shared Clean","#eef6ff");
+    s += box(590,300,130,56,"I","Invalid","#ffffff");
+    arrow(170,68,315,68,"write",242,60);
+    arrow(445,68,590,68,"ReadShared snoop",517,60);
+    arrow(655,96,655,300,"MakeInvalid",690,200);
+    arrow(590,328,170,328,"ReadShared / ReadClean",380,318);
+    arrow(105,300,105,96,"MakeUnique / CleanUnique",58,200);
+    arrow(545,300,190,96,"ReadUnique / ReadOnce",330,190);
+    arrow(380,96,545,300,"WriteBack",500,195);
+    arrow(590,96,145,300,"WriteClean",330,250);
+    s += `<text x="380" y="356" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--sans)">evict / snoop invalidate return the line to I</text>`;
+    s += `</svg>`;
+    return s;
+  }
+
   const S = {};
 
   S.overview = () => `<h1>AMBA ACE Protocol Reference</h1>
