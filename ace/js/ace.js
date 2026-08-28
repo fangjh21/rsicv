@@ -129,24 +129,29 @@
   }
 
   function statesSVG(){
-    let s = `<svg width="860" height="480" viewBox="0 0 860 480" xmlns="http://www.w3.org/2000/svg" role="img">`;
+    let s = `<svg width="880" height="470" viewBox="0 0 880 470" xmlns="http://www.w3.org/2000/svg" role="img">`;
     s += `<defs><marker id="st" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0969da"/></marker></defs>`;
-    const box = (x,y,n,f,fill) => `<rect x="${x}" y="${y}" width="170" height="76" rx="8" fill="${fill}" stroke="#d0d7de" stroke-width="1.4"/><text x="${x+85}" y="${y+34}" text-anchor="middle" font-size="17" font-weight="700" fill="#24292f" font-family="var(--mono)">${n}</text><text x="${x+85}" y="${y+56}" text-anchor="middle" font-size="11" fill="#57606a" font-family="var(--sans)">${f}</text>`;
-    const lab = (x,y,t) => `<text x="${x}" y="${y}" text-anchor="middle" font-size="11.5" fill="#57606a" font-family="var(--mono)" stroke="#ffffff" stroke-width="3" paint-order="stroke">${t}</text>`;
-    const ar = (x1,y1,x2,y2,t,lx,ly) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#0969da" stroke-width="2" marker-end="url(#st)"/>${lab(lx,ly,t)}`;
-    // states
-    s += box(60,120,"UC","Unique Clean","#eef6ff");
-    s += box(340,64,"UD","Unique Dirty","#fff3d6");
-    s += box(600,120,"SD","Shared Dirty","#fff3d6");
-    s += box(600,350,"I","Invalid","#ffffff");
-    s += box(60,350,"SC","Shared Clean","#eef6ff");
+    const box = (x,y,n,f,fill) => `<rect x="${x}" y="${y}" width="160" height="70" rx="8" fill="${fill}" stroke="#d0d7de" stroke-width="1.4"/><text x="${x+80}" y="${y+30}" text-anchor="middle" font-size="16" font-weight="700" fill="#24292f" font-family="var(--mono)">${n}</text><text x="${x+80}" y="${y+50}" text-anchor="middle" font-size="10.5" fill="#57606a" font-family="var(--sans)">${f}</text>`;
+    const line = (x1,y1,x2,y2) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#0969da" stroke-width="2" marker-end="url(#st)"/>`;
+    const lab = (x,y,t,rot) => `<text x="${x}" y="${y}" text-anchor="middle" font-size="11.5" fill="#57606a" font-family="var(--mono)" stroke="#ffffff" stroke-width="3.5" paint-order="stroke"${rot?` transform="rotate(${rot} ${x} ${y})"`:""}>${t}</text>`;
+    const ar = (x1,y1,x2,y2,t,lx,ly,rot) => line(x1,y1,x2,y2) + lab(lx,ly,t,rot);
+    // states (corner layout)
+    s += box(45,50,"UC","Unique Clean","#eef6ff");
+    s += box(360,50,"UD","Unique Dirty","#fff3d6");
+    s += box(660,50,"SD","Shared Dirty","#fff3d6");
+    s += box(45,355,"SC","Shared Clean","#eef6ff");
+    s += box(660,355,"I","Invalid","#ffffff");
     // ring transitions
-    s += ar(230,158,346,110,"write",300,128);
-    s += ar(510,110,604,158,"ReadShared snoop",560,128);
-    s += ar(685,196,685,354,"MakeInvalid",745,286);
-    s += ar(600,388,220,388,"ReadShared / ReadClean",410,378);
-    s += ar(145,350,145,192,"MakeUnique / CleanUnique",175,268);
-    s += `<text x="430" y="452" text-anchor="middle" font-size="11.5" fill="#57606a" font-family="var(--sans)" stroke="#ffffff" stroke-width="3" paint-order="stroke">Also: ReadUnique I→UC, WriteBack UD→I, WriteClean SD→SC, and eviction / snoop invalidate → I (see table)</text>`;
+    s += ar(205,85,360,85,"write",282,77);
+    s += ar(520,85,660,85,"ReadShared snoop",590,77);
+    s += ar(740,120,740,355,"MakeInvalid",792,240);
+    s += ar(660,390,205,390,"ReadShared / ReadClean",430,382);
+    s += ar(125,355,125,120,"MakeUnique / CleanUnique",172,240);
+    // diagonal transitions (labels rotated along the arrow, spread out)
+    s += ar(125,120,740,355,"ReadUnique / ReadOnce",250,155,22);
+    s += ar(440,120,740,355,"WriteBack",488,155,40);
+    s += ar(740,120,205,355,"WriteClean",630,155,-25);
+    s += `<text x="440" y="440" text-anchor="middle" font-size="11.5" fill="#57606a" font-family="var(--sans)" stroke="#ffffff" stroke-width="3" paint-order="stroke">Also: eviction and snoop-invalidate return a line to I (see table)</text>`;
     s += `</svg>`;
     return s;
   }
