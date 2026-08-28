@@ -256,7 +256,66 @@
   <div class="note"><b>记忆</b>：一致性读写看 <code>AWSNOOP/ARSNOOP</code>（事务「想要什么一致性结果」）；互连据此在 <code>AC</code> 发监听、缓存经 <code>CR/CD</code> 回结果；<code>RACK/WACK</code> 是「资源可释放」的独立完成握手。</div>`;
 
   S.transactions = () => `<h1>访问分类</h1>
-  <div class="card"><p>读写/监听/屏障事务编码与含义正在撰写，将在第 5 版补齐。</p></div>`;
+  <p class="lead">ACE 的事务按「<b>谁发起、要什么一致性结果</b>」分三类：一致性读（ARSNOOP）、一致性写（AWSNOOP）、监听事务（ACSNOOP），外加两类屏障。核心规律：<b>含 Unique 的 = 要独占；含 Invalid 的 = 让别处失效；含 Clean/Shared 的 = 读共享；含 Back/Clean 的写 = 自己回写内存</b>。</p>
+
+  <h2>1. 一致性读（ARSNOOP，4 位）</h2>
+  <div class="card">
+    <table>
+      <tr><th>值</th><th>事务</th><th>含义 / 互连要不要监听</th></tr>
+      <tr><td>0b0000</td><td><code>ReadNoSnoop</code></td><td>普通读，不做一致性维护（NoSnoop）</td></tr>
+      <tr><td>0b0001</td><td><code>ReadOnce</code></td><td>读一次；只有当结果是 Unique 时才允许缓存，互连可不监听</td></tr>
+      <tr><td>0b0010</td><td><code>ReadClean</code></td><td>读且要干净数据；互连监听，把别处脏数据回写内存，本端得 Clean</td></tr>
+      <tr><td>0b0011</td><td><code>ReadShared</code></td><td>读并可共享；互连监听，允许保持 Shared 副本</td></tr>
+      <tr><td>0b0100</td><td><code>ReadNotSharedDirty</code></td><td>读但不要别处的脏数据（脏数据只回写内存），本端得干净副本</td></tr>
+      <tr><td>0b0101</td><td><code>ReadUnique</code></td><td>读且要<b>独占</b>；互连监听使别处失效并取回脏数据，本端得 Unique —— 典型「读改写」前奏</td></tr>
+      <tr><td>0b0110</td><td><code>CleanInvalid</code></td><td>让别处失效、无数据返回（本端已知数据干净，准备全行写）</td></tr>
+      <tr><td>0b0111</td><td><code>MakeInvalid</code></td><td>让别处失效并把脏数据回写内存、无数据返回本端</td></tr>
+      <tr><td>0b1000</td><td><code>CleanShared</code></td><td>把副本清理成共享状态（缓存维护/降级）</td></tr>
+      <tr><td>0b1001</td><td><code>MakeUnique</code></td><td>把已有共享副本<b>升级为独占</b>，无数据返回</td></tr>
+    </table>
+    <p>直觉记忆：<b>ReadOnce 最省（可省监听）→ ReadShared/Clean 要监听取共享 → ReadUnique/MakeUnique 要独占 → CleanInvalid/MakeInvalid 只要别处失效不要数据</b>。</p>
+  </div>
+
+  <h2>2. 一致性写（AWSNOOP，3 位）</h2>
+  <div class="card">
+    <table>
+      <tr><th>值</th><th>事务</th><th>含义</th></tr>
+      <tr><td>0b000</td><td><code>WriteNoSnoop</code></td><td>普通写，无一致性（写内存）</td></tr>
+      <tr><td>0b001</td><td><code>WriteUnique</code></td><td><b>部分行</b>独占写；互连监听使别处失效并合并脏数据 → 本站 <a href="#/writeunique">WriteUnique</a> 主角</td></tr>
+      <tr><td>0b010</td><td><code>WriteLineUnique</code></td><td><b>整行</b>独占写；<code>AWUNIQUE=1</code> 表示本端已是 Unique（可省监听），否则互连监听</td></tr>
+      <tr><td>0b011</td><td><code>WriteBack</code></td><td>缓存<b>淘汰脏行</b>，回写内存（不监听，数据不再保留）</td></tr>
+      <tr><td>0b100</td><td><code>WriteClean</code></td><td>把脏行回写内存但<b>继续保留</b>（变 Clean）</td></tr>
+    </table>
+    <p>与读类的对应：<code>WriteUnique</code> ≈ 写侧「要独占」，<code>WriteBack/WriteClean</code> ≈ 写侧「自己交数据」，<code>WriteLineUnique</code> 用 <code>AWUNIQUE</code> 位省一次监听。</p>
+  </div>
+
+  <h2>3. 监听事务（ACSNOOP，4 位）</h2>
+  <div class="card">
+    <table>
+      <tr><th>值</th><th>事务</th><th>被监听缓存要做什么</th></tr>
+      <tr><td>0b0000</td><td><code>ReadOnce</code></td><td>交出数据（若有）；可能降级/失效</td></tr>
+      <tr><td>0b0001</td><td><code>ReadClean</code></td><td>交出数据，行变 Clean</td></tr>
+      <tr><td>0b0010</td><td><code>ReadShared</code></td><td>交出数据，行变 Shared</td></tr>
+      <tr><td>0b0011</td><td><code>ReadNotSharedDirty</code></td><td>交出数据但不交给请求方共享（脏数据回写内存）</td></tr>
+      <tr><td>0b0100</td><td><code>CleanInvalid</code></td><td>失效该行（无需交数据，因为干净）</td></tr>
+      <tr><td>0b0101</td><td><code>MakeInvalid</code></td><td>失效该行；若脏则经 <code>CD</code> 交出数据</td></tr>
+      <tr><td>0b0110</td><td><code>CleanShared</code></td><td>交出数据，保持 Shared</td></tr>
+      <tr><td>0b0111</td><td><code>MakeUnique</code></td><td>失效该行；若脏则交出数据，使请求方成为 Unique</td></tr>
+    </table>
+    <p>监听事务与一致性读写是<b>成对</b>的：主设备发 <code>ReadUnique</code>，互连就向其他缓存发 <code>MakeInvalid</code> 监听；发 <code>WriteUnique</code>，互连发 <code>MakeInvalid</code>（或 CleanInvalid）。</p>
+  </div>
+
+  <h2>4. 屏障（Barrier）</h2>
+  <div class="card">
+    <table>
+      <tr><th>事务</th><th>信号</th><th>含义</th></tr>
+      <tr><td><code>MemoryBarrier</code></td><td><code>ARBAR/AWBAR</code> 的相应位</td><td>屏障前的事务须在屏障后的事务被观测前全局可见（保序）</td></tr>
+      <tr><td><code>SyncBarrier</code></td><td><code>ARBAR/AWBAR</code></td><td>所有参与主设备的同步点（更强，需多方确认）</td></tr>
+    </table>
+    <p>屏障用 <code>ARBAR/AWBAR</code> 携带（不另占 snoop 编码），互连据此在不同事务流之间强加顺序。</p>
+  </div>
+
+  <div class="note"><b>说明</b>：编码表对应 ARM <b>IHI 0022</b>（AMBA AXI/ACE 规范附录 G）。若你手头规范版本较新，请以规范原文为准；本站编码已按 IHI0022H 核对。</div>`;
 
   S.timing = () => `<h1>事务时序图</h1>
   <div class="card"><p>Read/Write 系列时序图正在撰写，将在第 6 版补齐。</p></div>`;
