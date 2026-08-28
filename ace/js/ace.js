@@ -158,10 +158,10 @@
     <p>ACE 一共 8 条单向通道。前 5 条是 AXI4 本体，后 3 条是 ACE 新增的监听通道：</p>
     <table>
       <tr><th>通道</th><th>方向</th><th>作用</th></tr>
-      <tr><td><code>AW</code> 写地址</td><td>主 → 互连</td><td>写事务的地址/属性（ACE 加 <code>AWSNOOP/AWDOMAIN/AWBAR</code>）</td></tr>
+      <tr><td><code>AW</code> 写地址</td><td>主 → 互连</td><td>写事务的地址/属性（ACE 加 <code>AWSNOOP/AWDOMAIN/AWUNIQUE</code>）</td></tr>
       <tr><td><code>W</code> 写数据</td><td>主 → 互连</td><td>写数据 + 字节选通 <code>WSTRB</code> + <code>WLAST</code></td></tr>
       <tr><td><code>B</code> 写响应</td><td>互连 → 主</td><td>写完成响应（ACE 加 <code>WACK</code>）</td></tr>
-      <tr><td><code>AR</code> 读地址</td><td>主 → 互连</td><td>读事务的地址/属性（ACE 加 <code>ARSNOOP/ARDOMAIN/ARBAR</code>）</td></tr>
+      <tr><td><code>AR</code> 读地址</td><td>主 → 互连</td><td>读事务的地址/属性（ACE 加 <code>ARSNOOP/ARDOMAIN</code>）</td></tr>
       <tr><td><code>R</code> 读数据</td><td>互连 → 主</td><td>读数据 + 响应（ACE 加 <code>RACK</code>）</td></tr>
       <tr><td><code>AC</code> 监听地址</td><td>互连 → 缓存主</td><td>一致性监听请求（<code>ACADDR/ACSNOOP/ACPROT</code>）</td></tr>
       <tr><td><code>CR</code> 监听响应</td><td>缓存主 → 互连</td><td>监听结果（<code>CRRESP</code>）</td></tr>
@@ -200,15 +200,15 @@
   <div class="note"><b>下一节</b>：逐信号逐位的精确定义见 <a href="#/signals">信号解释</a>。</div>`;
 
   S.signals = () => `<h1>信号解释</h1>
-  <p class="lead">逐通道、逐信号。ACE = AXI4 基础信号 + 一致性增强信号。信号名以下表为准（前缀 <code>AW/W/B/AR/R/AC/CR/CD</code> 对应通道，<code>xVALID/xREADY</code> 为各通道握手）。</p>
+  <p class="lead">逐通道、逐信号。ACE = AXI4 基础信号 + 一致性增强信号。前缀 <code>AW/W/B/AR/R/AC/CR/CD</code> 对应通道，<code>xVALID/xREADY</code> 为各通道握手。（本表按 <b>AMBA 4 ACE</b>，AMBA 5 的差异见<a href="#/transactions">访问分类</a>末尾说明。）</p>
 
   <h2>1. AXI4 基础通道（先记住这些）</h2>
   <div class="card">
     <table>
       <tr><th>通道</th><th>关键信号</th><th>含义</th></tr>
       <tr><td><code>AW</code> 写地址</td><td><code>AWVALID/AWREADY/AWID/AWADDR/AWLEN/AWSIZE/AWBURST/AWLOCK/AWCACHE/AWPROT/AWQOS</code></td><td>写事务地址与属性；AWLEN 突发长度、AWSIZE 每拍字节数</td></tr>
-      <tr><td><code>W</code> 写数据</td><td><code>WVALID/WREADY/WID/WDATA/WSTRB/WLAST</code></td><td>写数据 + 字节选通 WSTRB（每 bit 对应一字节）+ 末拍 WLAST</td></tr>
-      <tr><td><code>B</code> 写响应</td><td><code>BVALID/BREADY/BID/BRESP</code></td><td>写完成；BRESP=OKAY/EXOKAY/SLVERR/DECERR</td></tr>
+      <tr><td><code>W</code> 写数据</td><td><code>WVALID/WREADY/WDATA/WSTRB/WLAST</code></td><td>写数据 + 字节选通 WSTRB（每 bit 对应一字节）+ 末拍 WLAST</td></tr>
+      <tr><td><code>B</code> 写响应</td><td><code>BVALID/BREADY/BID/BRESP[1:0]</code></td><td>写完成；BRESP=OKAY/EXOKAY/SLVERR/DECERR</td></tr>
       <tr><td><code>AR</code> 读地址</td><td><code>ARVALID/ARREADY/ARID/ARADDR/ARLEN/ARSIZE/ARBURST/ARLOCK/ARCACHE/ARPROT/ARQOS</code></td><td>读事务地址与属性</td></tr>
       <tr><td><code>R</code> 读数据</td><td><code>RVALID/RREADY/RID/RDATA/RRESP/RLAST</code></td><td>读数据 + 响应；RLAST 标末拍</td></tr>
     </table>
@@ -219,103 +219,112 @@
     <table>
       <tr><th>信号</th><th>通道</th><th>位宽</th><th>含义</th></tr>
       <tr><td><code>AWSNOOP</code></td><td>AW</td><td>3b</td><td>本次写的一致性类型（WriteNoSnoop/WriteUnique/WriteLineUnique/WriteBack/WriteClean）</td></tr>
-      <tr><td><code>AWUNIQUE</code></td><td>AW</td><td>1b</td><td>对 WriteLineUnique：=1 表示已是唯一副本、互连可省监听</td></tr>
-      <tr><td><code>AWDOMAIN</code></td><td>AW</td><td>2b</td><td>写所属一致性域（Non-shareable / Inner / Outer / System）</td></tr>
-      <tr><td><code>AWBAR</code></td><td>AW</td><td>2b</td><td>写屏障（=1 MemoryBarrier，=2 SyncBarrier）</td></tr>
-      <tr><td><code>ARSNOOP</code></td><td>AR</td><td>4b</td><td>本次读的一致性类型（ReadNoSnoop/ReadOnce/ReadClean/ReadShared/ReadNotSharedDirty/ReadUnique/CleanInvalid/MakeInvalid/CleanShared/MakeUnique）</td></tr>
+      <tr><td><code>AWUNIQUE</code></td><td>AW</td><td>1b</td><td>对 WriteLineUnique：=1 表示本端已是唯一副本、互连可省监听</td></tr>
+      <tr><td><code>AWDOMAIN</code></td><td>AW</td><td>2b</td><td>写所属一致性域（0b00 Non-shareable / 0b01 Inner / 0b10 Outer / 0b11 System）</td></tr>
+      <tr><td><code>ARSNOOP</code></td><td>AR</td><td>4b</td><td>本次读的一致性类型（ReadNoSnoop/ReadOnce…/ReadUnique/CleanInvalid/MakeInvalid/CleanShared/MakeUnique 等，见<a href="#/transactions">访问分类</a>）</td></tr>
       <tr><td><code>ARDOMAIN</code></td><td>AR</td><td>2b</td><td>读所属一致性域</td></tr>
-      <tr><td><code>ARBAR</code></td><td>AR</td><td>2b</td><td>读屏障</td></tr>
-      <tr><td><code>RACK</code></td><td>R</td><td>1b</td><td>读事务的读响应「可安全释放」握手（一致性事务专用完成点）</td></tr>
-      <tr><td><code>WACK</code></td><td>B</td><td>1b</td><td>写事务的写响应「可安全释放」握手</td></tr>
-      <tr><td><code>RRESP</code></td><td>R</td><td>3b</td><td>扩展含 OKAY/EXOKAY（PassDirty/PassClean 语义经 RRESP[2] 表达）</td></tr>
+      <tr><td><code>RACK</code></td><td>R</td><td>1b</td><td>读型事务完成握手：主设备在接收末拍 RLAST 后下一拍拉高（读/Clean/Make/屏障事务以此收尾）</td></tr>
+      <tr><td><code>WACK</code></td><td>B</td><td>1b</td><td>写型事务完成握手：主设备在接收写响应 B 后下一拍拉高（写/Evict 事务以此收尾）</td></tr>
+      <tr><td><code>RRESP</code></td><td>R</td><td>4b</td><td>读响应；ACE 扩到 4 位：<code>RRESP[2]=PassDirty</code>、<code>RRESP[3]=IsShared</code>，告诉请求方按 Unique 还是 Shared 分配；低 2 位仍是标准 AXI 响应</td></tr>
     </table>
+    <p><b>RACK/WACK 是「完成确认」而非额外数据</b>：互连靠它们回收事务状态，必须纯由通道握手产生（不能有内部停顿），否则会死锁 —— 这是 ACE 防死锁的一条硬规则。</p>
   </div>
 
   <h2>3. 监听三通道（AC / CR / CD）</h2>
   <div class="card">
     <table>
       <tr><th>信号</th><th>通道</th><th>位宽</th><th>含义</th></tr>
-      <tr><td><code>ACVALID/ACREADY</code></td><td>AC</td><td>1b</td><td>监听地址握手</td></tr>
+      <tr><td><code>ACVALID/ACREADY</code></td><td>AC</td><td>1b</td><td>监听地址握手（互连 → 缓存）</td></tr>
       <tr><td><code>ACADDR</code></td><td>AC</td><td>addr</td><td>被监听地址</td></tr>
-      <tr><td><code>ACSNOOP</code></td><td>AC</td><td>4b</td><td>监听事务类型（ReadOnce/ReadClean/ReadShared/ReadNotSharedDirty/CleanInvalid/MakeInvalid/CleanShared/MakeUnique）</td></tr>
+      <tr><td><code>ACSNOOP</code></td><td>AC</td><td>4b</td><td>监听命令 —— 复用 ARSNOOP 的 4 位编码空间（ReadOnce/ReadClean/ReadShared/CleanShared/MakeUnique/ReadNotSharedDirty/ReadUnique/CleanInvalid/MakeInvalid 等）</td></tr>
       <tr><td><code>ACPROT</code></td><td>AC</td><td>3b</td><td>保护属性</td></tr>
-      <tr><td><code>CRVALID/CRREADY</code></td><td>CR</td><td>1b</td><td>监听响应握手</td></tr>
-      <tr><td><code>CRRESP</code></td><td>CR</td><td>5b</td><td>监听结果：PassDirty / PassClean / Fail（+ 其他）</td></tr>
+      <tr><td><code>CRVALID/CRREADY</code></td><td>CR</td><td>1b</td><td>监听响应握手（缓存 → 互连）</td></tr>
+      <tr><td><code>CRRESP</code></td><td>CR</td><td>5b</td><td>监听结果，按位域表示：<code>ERROR / PASSDIRTY / ISSHARED / WASUNIQUE</code>（具体位序以 IHI 0022 为准）—— PASSDIRTY=1 表示本缓存是唯一脏副本</td></tr>
       <tr><td><code>CDVALID/CDREADY</code></td><td>CD</td><td>1b</td><td>监听数据握手</td></tr>
       <tr><td><code>CDDATA</code></td><td>CD</td><td>data</td><td>交出的脏缓存行数据</td></tr>
       <tr><td><code>CDLAST</code></td><td>CD</td><td>1b</td><td>脏数据末拍</td></tr>
     </table>
-    <div class="note warn"><b>编码以 ARM IHI 0022 为准</b>：ARSNOOP 4b（0b0000 ReadNoSnoop … 0b1001 MakeUnique）、AWSNOOP 3b（0b000 WriteNoSnoop … 0b100 WriteClean）、ACSNOOP 4b（0b0000 ReadOnce … 0b0111 MakeUnique）的逐值含义见 <a href="#/transactions">访问分类</a>；完整 5b CRRESP 各值在下面给出主要三项，其余见规范附录。</div>
   </div>
 
-  <h2>4. 低功耗通道（ACE-Lite / C-channel）</h2>
+  <h2>4. 屏障与低功耗（不是「BAR 信号线」）</h2>
   <div class="card">
-    <p>ACE-Lite 主设备（如 C910 对外侧）用三条信号表达「我是否处于可关时钟状态」：<code>CACTIVE</code>（主设备有无未完成事务）、<code>CSYSREQ</code>（系统请求主设备进入/退出低功耗）、<code>CSYSACK</code>（主设备确认进入低功耗）。C910 的 <code>biu_pad_cactive / pad_biu_csysreq / biu_pad_csysack</code> 即此通道 —— 注意它不是一致性，而是电源门控握手。</p>
+    <p><b>更正</b>：ACE 的 <code>MemoryBarrier</code> / <code>SyncBarrier</code> 是<b>事务类型</b>（在 AR/AW 上发起），<b>没有 AWBAR/ARBAR 这种专用信号线</b>（网上部分简图写的 ARBAR/AWBAR 不是标准 ACE 信号）。AMBA 5 已移除屏障事务编码。</p>
+    <p><b>低功耗 C-channel（ACE-Lite）</b>：<code>CACTIVE</code>（主设备有无未完成事务）、<code>CSYSREQ</code>（系统请求进入/退出低功耗）、<code>CSYSACK</code>（主设备确认）。C910 的 <code>biu_pad_cactive / pad_biu_csysreq / biu_pad_csysack</code> 即此通道 —— 它是电源门控握手，不是一致性。</p>
   </div>
 
   <div class="note"><b>记忆</b>：一致性读写看 <code>AWSNOOP/ARSNOOP</code>（事务「想要什么一致性结果」）；互连据此在 <code>AC</code> 发监听、缓存经 <code>CR/CD</code> 回结果；<code>RACK/WACK</code> 是「资源可释放」的独立完成握手。</div>`;
 
   S.transactions = () => `<h1>访问分类</h1>
-  <p class="lead">ACE 的事务按「<b>谁发起、要什么一致性结果</b>」分三类：一致性读（ARSNOOP）、一致性写（AWSNOOP）、监听事务（ACSNOOP），外加两类屏障。核心规律：<b>含 Unique 的 = 要独占；含 Invalid 的 = 让别处失效；含 Clean/Shared 的 = 读共享；含 Back/Clean 的写 = 自己回写内存</b>。</p>
+  <p class="lead">ACE 的事务按「<b>谁发起、要什么一致性结果</b>」分三类：一致性读（ARSNOOP）、一致性写（AWSNOOP）、监听事务（ACSNOOP），外加两类屏障。<b>以下编码为 AMBA 4 ACE</b>（AMBA 5 的改动见末尾说明）。</p>
 
   <h2>1. 一致性读（ARSNOOP，4 位）</h2>
   <div class="card">
     <table>
-      <tr><th>值</th><th>事务</th><th>含义 / 互连要不要监听</th></tr>
-      <tr><td>0b0000</td><td><code>ReadNoSnoop</code></td><td>普通读，不做一致性维护（NoSnoop）</td></tr>
-      <tr><td>0b0001</td><td><code>ReadOnce</code></td><td>读一次；只有当结果是 Unique 时才允许缓存，互连可不监听</td></tr>
-      <tr><td>0b0010</td><td><code>ReadClean</code></td><td>读且要干净数据；互连监听，把别处脏数据回写内存，本端得 Clean</td></tr>
-      <tr><td>0b0011</td><td><code>ReadShared</code></td><td>读并可共享；互连监听，允许保持 Shared 副本</td></tr>
-      <tr><td>0b0100</td><td><code>ReadNotSharedDirty</code></td><td>读但不要别处的脏数据（脏数据只回写内存），本端得干净副本</td></tr>
-      <tr><td>0b0101</td><td><code>ReadUnique</code></td><td>读且要<b>独占</b>；互连监听使别处失效并取回脏数据，本端得 Unique —— 典型「读改写」前奏</td></tr>
-      <tr><td>0b0110</td><td><code>CleanInvalid</code></td><td>让别处失效、无数据返回（本端已知数据干净，准备全行写）</td></tr>
-      <tr><td>0b0111</td><td><code>MakeInvalid</code></td><td>让别处失效并把脏数据回写内存、无数据返回本端</td></tr>
-      <tr><td>0b1000</td><td><code>CleanShared</code></td><td>把副本清理成共享状态（缓存维护/降级）</td></tr>
-      <tr><td>0b1001</td><td><code>MakeUnique</code></td><td>把已有共享副本<b>升级为独占</b>，无数据返回</td></tr>
+      <tr><th>值</th><th>事务</th><th>含义</th></tr>
+      <tr><td>0b0000</td><td><code>ReadNoSnoop</code></td><td>非一致读（Non-shareable/System），不做监听</td></tr>
+      <tr><td>0b0001</td><td><code>ReadOnceCleanInvalid</code></td><td>只读一次；其他副本建议清理+失效</td></tr>
+      <tr><td>0b0100</td><td><code>ReadOnce</code></td><td>只读一次，不分配进缓存</td></tr>
+      <tr><td>0b0101</td><td><code>ReadOnceMakeInvalid</code></td><td>只读一次；其他副本直接失效（不回写）</td></tr>
+      <tr><td>0b1000</td><td><code>ReadClean</code></td><td>行填充，返回的数据必须干净（脏数据回写内存）</td></tr>
+      <tr><td>0b1001</td><td><code>ReadShared</code></td><td>行填充，可返回脏数据，分配为 Shared</td></tr>
+      <tr><td>0b1010</td><td><code>CleanShared</code></td><td>缓存维护（CMO）：清理所有副本，无数据</td></tr>
+      <tr><td>0b1011</td><td><code>MakeUnique</code></td><td>使其他副本失效、本端独占（无数据返回）</td></tr>
+      <tr><td>0b1100</td><td><code>ReadNotSharedDirty</code></td><td>行填充，请求方不得以 Shared-Dirty 结束</td></tr>
+      <tr><td>0b1101</td><td><code>ReadUnique</code></td><td>行填充并分配为 <b>Unique</b>（写前奏）</td></tr>
+      <tr><td>0b1110</td><td><code>CleanInvalid</code></td><td>CMO：清理 + 失效所有副本</td></tr>
+      <tr><td>0b1111</td><td><code>MakeInvalid</code></td><td>CMO：失效所有副本（脏数据无需回写）</td></tr>
     </table>
-    <p>直觉记忆：<b>ReadOnce 最省（可省监听）→ ReadShared/Clean 要监听取共享 → ReadUnique/MakeUnique 要独占 → CleanInvalid/MakeInvalid 只要别处失效不要数据</b>。</p>
+    <p>规律：<b>00xx = ReadOnce 族（可省监听）→ 10xx = Read/Clean/Make 族（要监听）→ 11xx = Unique/Invalid 族（要独占/要失效）</b>。</p>
   </div>
 
   <h2>2. 一致性写（AWSNOOP，3 位）</h2>
   <div class="card">
     <table>
       <tr><th>值</th><th>事务</th><th>含义</th></tr>
-      <tr><td>0b000</td><td><code>WriteNoSnoop</code></td><td>普通写，无一致性（写内存）</td></tr>
-      <tr><td>0b001</td><td><code>WriteUnique</code></td><td><b>部分行</b>独占写；互连监听使别处失效并合并脏数据 → 本站 <a href="#/writeunique">WriteUnique</a> 主角</td></tr>
-      <tr><td>0b010</td><td><code>WriteLineUnique</code></td><td><b>整行</b>独占写；<code>AWUNIQUE=1</code> 表示本端已是 Unique（可省监听），否则互连监听</td></tr>
-      <tr><td>0b011</td><td><code>WriteBack</code></td><td>缓存<b>淘汰脏行</b>，回写内存（不监听，数据不再保留）</td></tr>
-      <tr><td>0b100</td><td><code>WriteClean</code></td><td>把脏行回写内存但<b>继续保留</b>（变 Clean）</td></tr>
+      <tr><td>0b000</td><td><code>WriteNoSnoop</code></td><td>非一致写（写内存）</td></tr>
+      <tr><td>0b001</td><td><code>WriteUnique</code></td><td>对<b>不持有</b>的 Shareable 行做一致写，<b>写穿/不分配</b>；互连监听使别处失效并合并脏数据（本站 <a href="#/writeunique">WriteUnique</a> 主角）</td></tr>
+      <tr><td>0b010</td><td><code>WriteLineUnique</code></td><td><b>整行</b>一致写，把该行分配为 <b>Unique</b>；<code>AWUNIQUE=1</code> 表示本端已唯一可省监听</td></tr>
+      <tr><td>0b011</td><td><code>WriteBack</code></td><td>淘汰<b>脏</b> Shareable 行，回写内存</td></tr>
+      <tr><td>0b100</td><td><code>WriteClean</code></td><td>清理<b>干净</b> Shareable 行（无数据出）</td></tr>
     </table>
-    <p>与读类的对应：<code>WriteUnique</code> ≈ 写侧「要独占」，<code>WriteBack/WriteClean</code> ≈ 写侧「自己交数据」，<code>WriteLineUnique</code> 用 <code>AWUNIQUE</code> 位省一次监听。</p>
+    <p>AMBA 5 更名：<code>WriteUnique → WriteUniquePtl</code>、<code>WriteLineUnique → WriteUniqueFull</code>（与 CHI 命名对齐）。</p>
   </div>
 
-  <h2>3. 监听事务（ACSNOOP，4 位）</h2>
+  <h2>3. 监听命令（ACSNOOP，4 位）</h2>
   <div class="card">
+    <p><b>ACSNOOP 复用 ARSNOOP 的 4 位编码空间</b>（互连向缓存发监听时，用同一套读/清/失效命令码，但语义是「对被监听缓存下命令」）。常用监听命令：</p>
     <table>
-      <tr><th>值</th><th>事务</th><th>被监听缓存要做什么</th></tr>
-      <tr><td>0b0000</td><td><code>ReadOnce</code></td><td>交出数据（若有）；可能降级/失效</td></tr>
-      <tr><td>0b0001</td><td><code>ReadClean</code></td><td>交出数据，行变 Clean</td></tr>
-      <tr><td>0b0010</td><td><code>ReadShared</code></td><td>交出数据，行变 Shared</td></tr>
-      <tr><td>0b0011</td><td><code>ReadNotSharedDirty</code></td><td>交出数据但不交给请求方共享（脏数据回写内存）</td></tr>
-      <tr><td>0b0100</td><td><code>CleanInvalid</code></td><td>失效该行（无需交数据，因为干净）</td></tr>
-      <tr><td>0b0101</td><td><code>MakeInvalid</code></td><td>失效该行；若脏则经 <code>CD</code> 交出数据</td></tr>
-      <tr><td>0b0110</td><td><code>CleanShared</code></td><td>交出数据，保持 Shared</td></tr>
-      <tr><td>0b0111</td><td><code>MakeUnique</code></td><td>失效该行；若脏则交出数据，使请求方成为 Unique</td></tr>
+      <tr><th>值</th><th>监听命令</th><th>被监听缓存要做什么</th></tr>
+      <tr><td>0b0100</td><td><code>ReadOnce</code></td><td>交出数据（若有）</td></tr>
+      <tr><td>0b0001 / 0b0101</td><td><code>ReadOnceCleanInvalid / ReadOnceMakeInvalid</code></td><td>交出数据并清理/失效</td></tr>
+      <tr><td>0b1000</td><td><code>ReadClean</code></td><td>交出数据，行变 Clean</td></tr>
+      <tr><td>0b1001</td><td><code>ReadShared</code></td><td>交出数据，行变 Shared</td></tr>
+      <tr><td>0b1010</td><td><code>CleanShared</code></td><td>交出数据，保持 Shared</td></tr>
+      <tr><td>0b1011</td><td><code>MakeUnique</code></td><td>失效，脏则交数据，使请求方 Unique</td></tr>
+      <tr><td>0b1100</td><td><code>ReadNotSharedDirty</code></td><td>交出数据但不交给请求方共享</td></tr>
+      <tr><td>0b1101</td><td><code>ReadUnique</code></td><td>交出数据，失效，使请求方 Unique</td></tr>
+      <tr><td>0b1110</td><td><code>CleanInvalid</code></td><td>失效该行（干净，无需数据）</td></tr>
+      <tr><td>0b1111</td><td><code>MakeInvalid</code></td><td>失效该行；脏则经 CD 交出</td></tr>
     </table>
-    <p>监听事务与一致性读写是<b>成对</b>的：主设备发 <code>ReadUnique</code>，互连就向其他缓存发 <code>MakeInvalid</code> 监听；发 <code>WriteUnique</code>，互连发 <code>MakeInvalid</code>（或 CleanInvalid）。</p>
+    <p>主设备发 <code>ReadUnique</code>，互连就向其他缓存发 <code>MakeInvalid</code>/<code>MakeUnique</code> 监听；发 <code>WriteUnique</code> 同理 —— 读写的「意图」与监听的「命令」成对。</p>
   </div>
 
   <h2>4. 屏障（Barrier）</h2>
   <div class="card">
     <table>
-      <tr><th>事务</th><th>信号</th><th>含义</th></tr>
-      <tr><td><code>MemoryBarrier</code></td><td><code>ARBAR/AWBAR</code> 的相应位</td><td>屏障前的事务须在屏障后的事务被观测前全局可见（保序）</td></tr>
-      <tr><td><code>SyncBarrier</code></td><td><code>ARBAR/AWBAR</code></td><td>所有参与主设备的同步点（更强，需多方确认）</td></tr>
+      <tr><th>事务</th><th>载体</th><th>含义</th></tr>
+      <tr><td><code>MemoryBarrier</code></td><td>AR/AW 上的事务类型</td><td>屏障前的事务须在屏障后事务被观测前全局可见（保序）</td></tr>
+      <tr><td><code>SyncBarrier</code></td><td>AR/AW 上的事务类型</td><td>所有参与主设备的同步点（更强）</td></tr>
     </table>
-    <p>屏障用 <code>ARBAR/AWBAR</code> 携带（不另占 snoop 编码），互连据此在不同事务流之间强加顺序。</p>
+    <p>屏障<b>不是</b>通过 ARBAR/AWBAR 专用信号线携带；AMBA 5 已移除 ACE 屏障事务编码。</p>
   </div>
 
-  <div class="note"><b>说明</b>：编码表对应 ARM <b>IHI 0022</b>（AMBA AXI/ACE 规范附录 G）。若你手头规范版本较新，请以规范原文为准；本站编码已按 IHI0022H 核对。</div>`;
+  <h2>AMBA 4 vs AMBA 5（务必知道）</h2>
+  <div class="card">
+    <p>现行 AMBA AXI 规范（IHI 0022 <b>Issue L</b>，2025-08）是 AMBA 5，它<b>重排了读事务编码</b>（ReadShared 移到 0b0001、ReadClean 0b0010 等）并<b>移除了屏障事务</b>。本站按经典 <b>AMBA 4 ACE</b> 讲解（你关心的 WriteUnique/WriteBack/ReadUnique 等命名均源于此），需要对照最新规范时请以 IHI 0022 原文为准。</p>
+  </div>
+
+  <div class="note"><b>依据</b>：编码表参照 ARM IHI 0022（AMBA AXI/ACE 规范）与 ARM DynamIQ/Cortex-A35 TRM 的信号位宽；ACSNoop 单独枚举与 CRRESP 位序在规范 Snoop 章节，建议引用前再核对一遍。</div>`;
 
   S.timing = () => `<h1>事务时序图</h1>
   <p class="lead">每个事务都是「请求 →（可能监听）→ 数据 → 响应/完成」的流程。下面按访问类型给出时序图，参与者为：请求者 RN、互连 ICN、对端缓存 Peer、内存 MEM。</p>
