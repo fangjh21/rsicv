@@ -126,7 +126,53 @@
   <div class="note"><b>下一步</b>：状态模型 + 事务类型如何联动，见 <a href="#/transactions">访问分类</a> 与 <a href="#/timing">时序图</a>。</div>`;
 
   S.protocol = () => `<h1>协议内容</h1>
-  <div class="card"><p>通道与握手、事务结构正在撰写，将在第 3 版补齐。</p></div>`;
+  <p class="lead">ACE 在 AXI4 之上叠加一致性能力。先理解「通道」这个基本单元和 VALID/READY 握手，再理解一个事务如何跨多条通道展开。</p>
+
+  <h2>1. 通道（Channel）总览</h2>
+  <div class="card">
+    <p>ACE 一共 8 条单向通道。前 5 条是 AXI4 本体，后 3 条是 ACE 新增的监听通道：</p>
+    <table>
+      <tr><th>通道</th><th>方向</th><th>作用</th></tr>
+      <tr><td><code>AW</code> 写地址</td><td>主 → 互连</td><td>写事务的地址/属性（ACE 加 <code>AWSNOOP/AWDOMAIN/AWBAR</code>）</td></tr>
+      <tr><td><code>W</code> 写数据</td><td>主 → 互连</td><td>写数据 + 字节选通 <code>WSTRB</code> + <code>WLAST</code></td></tr>
+      <tr><td><code>B</code> 写响应</td><td>互连 → 主</td><td>写完成响应（ACE 加 <code>WACK</code>）</td></tr>
+      <tr><td><code>AR</code> 读地址</td><td>主 → 互连</td><td>读事务的地址/属性（ACE 加 <code>ARSNOOP/ARDOMAIN/ARBAR</code>）</td></tr>
+      <tr><td><code>R</code> 读数据</td><td>互连 → 主</td><td>读数据 + 响应（ACE 加 <code>RACK</code>）</td></tr>
+      <tr><td><code>AC</code> 监听地址</td><td>互连 → 缓存主</td><td>一致性监听请求（<code>ACADDR/ACSNOOP/ACPROT</code>）</td></tr>
+      <tr><td><code>CR</code> 监听响应</td><td>缓存主 → 互连</td><td>监听结果（<code>CRRESP</code>）</td></tr>
+      <tr><td><code>CD</code> 监听数据</td><td>缓存主 → 互连</td><td>监听中交出的脏数据（<code>CDDATA/CDLAST</code>）</td></tr>
+    </table>
+    <p>记忆法：<b>AW/W/B</b> 是「写三件套」，<b>AR/R</b> 是「读两件套」，<b>AC/CR/CD</b> 是「监听三件套」—— 监听从互连<b>进</b>主设备（AC），主设备<b>回</b>结果（CR）和脏数据（CD）。</p>
+  </div>
+
+  <h2>2. VALID / READY 握手</h2>
+  <div class="card">
+    <p>每条通道用 <code>VALID</code>（发送方有数据）与 <code>READY</code>（接收方能收）握手。数据在 <b>VALID 与 READY 同时为高的时钟沿</b>传输，双方可各自等待，不阻塞。</p>
+    <p>两条铁律：</p>
+    <ul>
+      <li>发送方<b>不得</b>在 VALID 拉高后等待 READY 时改变数据（保持稳定直到握手完成）。</li>
+      <li>VALD 一旦拉高<b>必须保持到握手完成</b>；READY 可以随时拉高/拉低（甚至可以不等 VALID）。</li>
+    </ul>
+    <p>事务级：一个<b>突发（burst）</b>由 1 条地址握手 + N 次数据握手（N=AXLEN+1）组成，写以 <code>WLAST</code> 标记末拍，读以 <code>RLAST</code> 标记。</p>
+  </div>
+
+  <h2>3. 一个事务如何跨通道展开</h2>
+  <div class="card">
+    <p>写事务：<code>AW</code> 地址 →（可重叠）<code>W</code> 数据 → <code>B</code> 完成响应。<br>读事务：<code>AR</code> 地址 → <code>R</code> 数据（末拍带 <code>RLAST</code>）。<br>一致性事务：在上述读写之上，互连通过 <code>AC</code> 发监听、主设备经 <code>CR/CD</code> 响应 —— 三者时序上可与数据通道<b>并行流水</b>（例如 WriteUnique 的监听和 W 数据可以同时进行）。</p>
+    <p>ACE 的关键增强信号：</p>
+    <ul>
+      <li><code>AWSNOOP / ARSNOOP</code>：本次事务是否一致、以及是哪种一致性类型（决定互连要不要发监听）。</li>
+      <li><code>RACK / WACK</code>：分别指示「读事务的读响应已可安全释放」「写事务的写响应已可安全释放」—— 给一致性事务一个<b>独立的完成握手点</b>，允许后续事务超前流水。</li>
+      <li><code>AWDOMAIN / ARDOMAIN / AC...</code>：域与屏障，见<a href="#/signals">信号解释</a>。</li>
+    </ul>
+  </div>
+
+  <h2>4. 事务 ID 与乱序</h2>
+  <div class="card">
+    <p>同一主机可挂多个未完成事务，靠 <code>AWID/ARID/WID</code> 区分；互连对<b>不同 ID</b> 的事务可乱序返回 <code>B/R</code>，对<b>同 ID</b> 必须按序。ACE 的监听事务用 <code>AC</code> 通道自身的寻址与协议标识区分，不与主机的读写 ID 混淆。</p>
+  </div>
+
+  <div class="note"><b>下一节</b>：逐信号逐位的精确定义见 <a href="#/signals">信号解释</a>。</div>`;
 
   S.signals = () => `<h1>信号解释</h1>
   <div class="card"><p>逐通道逐信号表正在撰写，将在第 4 版补齐。</p></div>`;
