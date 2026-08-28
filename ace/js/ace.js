@@ -411,6 +411,23 @@
       <tr><td>写数据</td><td><code>W</code> 通道</td><td><code>NCBWrData</code></td></tr>
       <tr><td>完成</td><td><code>B + WACK</code></td><td><code>Comp</code> / <code>CompDBIDResp</code></td></tr>
     </table>
+    <h3>附：你提供的 CHI 版流程（WriteUniquePtl）</h3>
+    <p>下面是把它按同样画风重绘的 CHI 时序（报文名与你贴的一致，仅做可视化）：</p>
+    <div class="diagram">${seqSVG(
+      ["RN","HN (Home)","SN","Peer RN"],
+      [
+        [0,1,"WriteUniquePtl","写地址 + 控制信息"],
+        [1,0,"DBIDResp","数据缓冲 ID 分配完成"],
+        [1,3,"SnpCleanInvalid","要求其他缓存失效"],
+        [3,1,"SnpResp","SnpResp_I / SnpRespData_I_PD（脏则带回写）"],
+        [0,1,"NCBWrData","写数据"],
+        [1,2,"WriteNoSnp","合并后的数据写从节点"],
+        [2,1,"CompDBIDResp","写完成响应"],
+        [1,0,"Comp","全局完成"]
+      ],
+      { title:"AMBA CHI — WriteUniquePtl（你贴的原始流程，可视化对照）", h:560, w:820 }
+    )}</div>
+    <p>对照看出两条主线：<b>ACE 用通道握手 + 监听（AC/CR/CD），CHI 用报文 + 分离响应（DBIDResp/Comp）</b>；「先失效别处副本再独占写」这个语义两者完全一致。</p>
   </div>`;
 
   S.c910 = () => `<h1>C910 具体实现与 RTL 解读</h1>
