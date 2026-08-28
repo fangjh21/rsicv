@@ -75,7 +75,55 @@
   <div class="diagram">${writeUniqueSVG()}</div>`;
 
   S.principles = () => `<h1>原理</h1>
-  <div class="card"><p>本节（缓存一致性动机、MESI/MOESI 状态、ACE 的一致性模型与缓存行状态 I/UC/UD/SC/SD）正在撰写，将在第 2 版补齐。</p></div>`;
+  <p class="lead">为什么多核需要 ACE：从「私有缓存 + 共享内存」带来的数据一致性问题出发，理解一致性不变量、缓存状态模型，以及 ACE 采用的监听（snoop）机制。</p>
+
+  <h2>1. 问题：多核与私有缓存</h2>
+  <div class="card">
+    <p>每个 CPU 核有自己的 L1/L2 私有缓存，共享同一个主存。同一地址 <code>A</code> 可能同时存在于多个核的缓存里。当核 0 写入 A 而核 1 缓存里还留着旧值，核 1 读到的就是<b>陈旧数据</b>。这就是一致性要解决的问题。</p>
+    <p>单核里，写回缓存靠「命中/缺失」即可正确；多核里，必须额外保证<b>一个核的写能被其他核观察到</b>。</p>
+  </div>
+
+  <h2>2. 一致性不变量（Single-Writer / Multiple-Reader）</h2>
+  <div class="card">
+    <p>对任意一个内存位置，任何时刻只允许处于以下两者之一：</p>
+    <ul>
+      <li><b>单写者（SW）</b>：有且仅有一个核持有可写的副本（且此刻没有其他读副本）；或</li>
+      <li><b>多读者（MR）</b>：多个核持有只读副本，谁都不能写。</li>
+    </ul>
+    <p>一切一致性协议（MESI/MOESI/ACE/CHI…）本质上都在<b>维护这个不变量</b>：写之前先「回收」所有其他副本（失效或回写脏数据），读之前先「确保」副本是最新的。</p>
+  </div>
+
+  <h2>3. 缓存行状态模型</h2>
+  <div class="card">
+    <p>ACE 把每条缓存行分为 5 个状态（不同于 MESI 的 4 态，ACE 明确区分 Unique 与 Shared、Clean 与 Dirty）：</p>
+    <table>
+      <tr><th>状态</th><th>含义</th><th>可否静默改</th><th>备注</th></tr>
+      <tr><td><code>I</code> (Invalid)</td><td>该行无效/不在缓存</td><td>—</td><td>读/写都要发起事务</td></tr>
+      <tr><td><code>UC</code> (Unique Clean)</td><td>全系统唯一副本，且与内存一致</td><td>✅</td><td>写可静默升级为 UD（不需通知互连）</td></tr>
+      <tr><td><code>UD</code> (Unique Dirty)</td><td>唯一副本，比内存新（脏）</td><td>✅</td><td>独占脏行，可静默写</td></tr>
+      <tr><td><code>SC</code> (Shared Clean)</td><td>多个副本，与内存一致</td><td>❌</td><td>要写必须先升级为 Unique</td></tr>
+      <tr><td><code>SD</code> (Shared Dirty)</td><td>多个副本，其中一个持有脏数据</td><td>❌</td><td>写前需回写+失效其他副本</td></tr>
+    </table>
+    <p>直觉：<b>Unique = 只有我有</b>（可以自己改）；<b>Shared = 大家都有</b>（改之前要通知别人）；<b>Dirty = 我比内存新</b>（回写内存时要把脏数据交出来）。</p>
+  </div>
+
+  <h2>4. 两种实现机制：Snoop vs Directory</h2>
+  <div class="card">
+    <table>
+      <tr><th></th><th>Snoop（监听，ACE 采用）</th><th>Directory（目录，CHI Home 采用）</th></tr>
+      <tr><td>谁协调</td><td>互连把事务<b>广播/定向</b>给所有缓存主机</td><td>集中的 Home 节点记录每行的共享者目录</td></tr>
+      <tr><td>扩展性</td><td>适合中小规模（核数少，总线/交叉开关）</td><td>适合大规模（避免广播）</td></tr>
+      <tr><td>ACE 体现</td><td><code>AC</code> 通道发监听、<code>CR/CD</code> 回响应</td><td>（CHI 的 SNP 报文，非 ACE）</td></tr>
+    </table>
+    <p>ACE 属于 snoop 家族：互连（ICN）在收到一致性请求后，通过 <code>AC</code> 通道<b>向其他缓存主机发监听</b>，让它们失效/回写，从而把一行「收回」成 Unique 再交给请求者。</p>
+  </div>
+
+  <h2>5. 屏障与域（Barrier / Domain）</h2>
+  <div class="card">
+    <p>ACE 还定义了两种屏障事务：<code>MemoryBarrier</code>（保证屏障前的事务在屏障后的观测上全局可见）与 <code>SyncBarrier</code>（所有参与者的同步点）；并通过 <code>AWDOMAIN/ARDOMAIN</code> 把系统划分成「一致性域」，只有同域内才需要维持一致 —— 这也是 C910 这类多核簇接 SoC 时用到的边界概念。</p>
+  </div>
+
+  <div class="note"><b>下一步</b>：状态模型 + 事务类型如何联动，见 <a href="#/transactions">访问分类</a> 与 <a href="#/timing">时序图</a>。</div>`;
 
   S.protocol = () => `<h1>协议内容</h1>
   <div class="card"><p>通道与握手、事务结构正在撰写，将在第 3 版补齐。</p></div>`;
