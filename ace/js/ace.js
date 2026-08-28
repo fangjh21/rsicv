@@ -35,59 +35,59 @@
   /* ------------------ diagram builders (bilingual) ------------------ */
   function writeUniqueSVG(){
     return seqSVG(
-      [t("CPU 0 · L1","CPU 0 · L1"), t("互连 · L2","Interconnect · L2"), t("CPU 1 · L1","CPU 1 · L1"), t("CPU 2 · L1","CPU 2 · L1"), t("内存","Memory")],
+      ["CPU 0 · L1", "Interconnect · L2", "CPU 1 · L1", "CPU 2 · L1", "Memory"],
       [
-        [0,1, t("1. AW: WriteUnique","1. AW: WriteUnique"), t("地址 + AWSNOOP=WriteUnique","address + AWSNOOP=WriteUnique")],
-        [1,2, t("2. AC 监听: MakeInvalid","2. AC snoop: MakeInvalid"), t("广播到各对端","broadcast to peers")],
-        [1,3, t("2. AC 监听: MakeInvalid","2. AC snoop: MakeInvalid"), t("广播到各对端","broadcast to peers")],
-        [2,1, t("3. CR: 监听响应","3. CR: snoop response"), t("失效 / 脏数据经 CD","invalidated / dirty on CD")],
-        [3,1, t("3. CR: 监听响应","3. CR: snoop response"), t("失效 / 脏数据经 CD","invalidated / dirty on CD")],
-        [1,0, t("4. B: 写响应","4. B: write response"), t("获得独占权","exclusive ownership obtained")],
-        [0,1, t("5. W: 写数据","5. W: write data"), t("WDATA / WSTRB / WLAST","WDATA / WSTRB / WLAST")],
-        [1,4, t("6. WriteNoSnoop","6. WriteNoSnoop"), t("按需写内存","data to memory if needed")]
+        [0,1, "1. AW: WriteUnique", "address + AWSNOOP=WriteUnique"],
+        [1,2, "2. AC snoop: MakeInvalid", "broadcast to peers"],
+        [1,3, "2. AC snoop: MakeInvalid", "broadcast to peers"],
+        [2,1, "3. CR: snoop response", "invalidated / dirty on CD"],
+        [3,1, "3. CR: snoop response", "invalidated / dirty on CD"],
+        [1,0, "4. B: write response", "exclusive ownership obtained"],
+        [0,1, "5. W: write data", "WDATA / WSTRB / WLAST"],
+        [1,4, "6. WriteNoSnoop", "data to memory if needed"]
       ],
-      { title:t("AMBA ACE — WriteUnique(多对端广播)","AMBA ACE — WriteUnique (multi-owner broadcast)"), h:760, w:920 }
+      { title:"AMBA ACE — WriteUnique (multi-owner broadcast)", h:760, w:920 }
     );
   }
   function chiSVG(){
-    return seqSVG([t("CPU 0","CPU 0"), t("主节点 · L2","Home · L2"), t("内存","Memory"), t("CPU 1(对端)","CPU 1 (peer)")],
+    return seqSVG(["CPU 0", "Home · L2", "Memory", "CPU 1 (peer)"],
       [
-        [0,1,"WriteUniquePtl", t("地址 + 控制","address + control")],
-        [1,0,"DBIDResp", t("数据缓冲 ID 授予","data-buffer ID granted")],
-        [1,3,"SnpCleanInvalid", t("失效其他缓存","invalidate other caches")],
+        [0,1,"WriteUniquePtl", "address + control"],
+        [1,0,"DBIDResp", "data-buffer ID granted"],
+        [1,3,"SnpCleanInvalid", "invalidate other caches"],
         [3,1,"SnpResp", "SnpRespData_I_PD"],
-        [0,1,"NCBWrData", t("写数据","write data")],
-        [1,2,"WriteNoSnp", t("合并数据","merged data")],
-        [2,1,"CompDBIDResp", t("写完成","write-complete response")],
-        [1,0,"Comp", t("全局完成","global completion")]
+        [0,1,"NCBWrData", "write data"],
+        [1,2,"WriteNoSnp", "merged data"],
+        [2,1,"CompDBIDResp", "write-complete response"],
+        [1,0,"Comp", "global completion"]
       ],
       { title:"AMBA CHI — WriteUniquePtl", h:520, w:820 }
     );
   }
   function readUniqueSVG(){
-    return seqSVG([t("CPU 0","CPU 0"),t("互连","Interconnect"),t("CPU 1","CPU 1"),t("内存","Memory")], [
-      [0,1, t("AR: ReadUnique","AR: ReadUnique"), "ARSNOOP=ReadUnique"],
-      [1,2, t("监听: MakeInvalid","Snoop: MakeInvalid"), "ACSNOOP=MakeInvalid"],
-      [2,1, t("监听响应","Snoop resp"), t("CRRESP(脏则经 CD)","CRRESP (CD if dirty)")],
-      [1,0, t("R: 数据 + RACK","R: data + RACK"), t("RACK=1 → CPU 0 独占","RACK=1 → CPU 0 owns Unique")]
-    ], { title:t("ReadUnique — 读取并取得独占(失效对端)","ReadUnique — read and take ownership (invalidate peer)"), h:320, w:820 });
+    return seqSVG(["CPU 0","Interconnect","CPU 1","Memory"], [
+      [0,1, "AR: ReadUnique", "ARSNOOP=ReadUnique"],
+      [1,2, "Snoop: MakeInvalid", "ACSNOOP=MakeInvalid"],
+      [2,1, "Snoop resp", "CRRESP (CD if dirty)"],
+      [1,0, "R: data + RACK", "RACK=1 → CPU 0 owns Unique"]
+    ], { title:"ReadUnique — read and take ownership (invalidate peer)", h:320, w:820 });
   }
   function readSharedSVG(){
-    return seqSVG([t("CPU 0","CPU 0"),t("互连","Interconnect"),t("CPU 1","CPU 1"),t("内存","Memory")], [
-      [0,1, t("AR: ReadShared","AR: ReadShared"), "ARSNOOP=ReadShared"],
-      [1,2, t("监听: ReadClean","Snoop: ReadClean"), "ACSNOOP=ReadClean"],
-      [2,1, t("监听响应","Snoop resp"), t("CRRESP(脏则经 CD)","CRRESP (CD if dirty)")],
-      [1,0, t("R: 数据","R: data"), t("RACK → CPU 0 保留共享","RACK → CPU 0 keeps Shared")]
-    ], { title:t("ReadShared — 读取,对端保留共享副本","ReadShared — read, peer may retain a Shared copy"), h:320, w:820 });
+    return seqSVG(["CPU 0","Interconnect","CPU 1","Memory"], [
+      [0,1, "AR: ReadShared", "ARSNOOP=ReadShared"],
+      [1,2, "Snoop: ReadClean", "ACSNOOP=ReadClean"],
+      [2,1, "Snoop resp", "CRRESP (CD if dirty)"],
+      [1,0, "R: data", "RACK → CPU 0 keeps Shared"]
+    ], { title:"ReadShared — read, peer may retain a Shared copy", h:320, w:820 });
   }
   function wbSVG(){
-    return seqSVG([t("CPU 0 (L1)","CPU 0 (L1)"),t("互连","Interconnect"),t("内存","Memory"),""], [
-      [0,1, t("AW: WriteBack/WriteClean","AW: WriteBack/WriteClean"), "AWSNOOP"],
-      [0,1, t("W: 数据","W: data"), "WLAST"],
-      [1,2, "WriteNoSnoop", t("写内存","write to memory")],
+    return seqSVG(["CPU 0 (L1)","Interconnect","Memory",""], [
+      [0,1, "AW: WriteBack/WriteClean", "AWSNOOP"],
+      [0,1, "W: data", "WLAST"],
+      [1,2, "WriteNoSnoop", "write to memory"],
       [2,1, "B: BRESP", "OKAY"],
-      [1,0, "B + WACK", t("完成","complete")]
-    ], { title:t("WriteBack / WriteClean — 回写,无监听","WriteBack / WriteClean — writeback, no snoop"), h:360, w:760 });
+      [1,0, "B + WACK", "complete"]
+    ], { title:"WriteBack / WriteClean — writeback, no snoop", h:360, w:760 });
   }
   function channelsSVG(){
     const N="#0969da", SN="#8250df";
@@ -100,17 +100,17 @@
     </defs>`;
     const box=(x,y,w,h,title,sub,fill,border)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="${fill}" stroke="${border}" stroke-width="1.6"/><text x="${x+w/2}" y="${y+h/2-3}" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933" font-family="var(--sans)">${title}</text><text x="${x+w/2}" y="${y+h/2+16}" text-anchor="middle" font-size="10.5" fill="#4b5563" font-family="var(--mono)">${sub}</text>`;
     const ar=(x1,x2,y,label,c,mk)=>{ s+=`<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${c}" stroke-width="2.4" stroke-linecap="round" marker-end="url(#${mk})"/><text x="${(x1+x2)/2}" y="${y-7}" text-anchor="middle" font-size="11" fill="${c}" font-family="var(--mono)" stroke="#ffffff" stroke-width="3.5" paint-order="stroke">${label}</text>`; };
-    s += box(40,44,160,262, t("CPU · L1","CPU · L1"), t("请求者 (RN)","requester (RN)"), CPU, CPUB);
-    s += box(320,44,180,262, t("互连","Interconnect"), t("一致性点","coherence point"), ICN, ICNB);
-    s += box(620,90,150,170, t("内存","Memory"), t("控制器 · DDR","controller · DDR"), MEM, MEMB);
+    s += box(40,44,160,262, "CPU · L1", "requester (RN)", CPU, CPUB);
+    s += box(320,44,180,262, "Interconnect", "coherence point", ICN, ICNB);
+    s += box(620,90,150,170, "Memory", "controller · DDR", MEM, MEMB);
     const Y=[84,114,144,174,204,234,264,292];
     ar(200,320,Y[0],"AW",N,"cn"); ar(200,320,Y[1],"AR",N,"cn"); ar(200,320,Y[2],"W",N,"cn");
     ar(200,320,Y[3],"AC",SN,"cs"); ar(200,320,Y[4],"CR",SN,"cs"); ar(200,320,Y[5],"CD",SN,"cs");
     ar(200,320,Y[6],"B",N,"cn"); ar(200,320,Y[7],"R",N,"cn");
     const M=[140,180,220,258];
     ar(500,620,M[0],"AW/W",N,"cm"); ar(500,620,M[1],"AR",N,"cm"); ar(620,500,M[2],"B",N,"cm"); ar(620,500,M[3],"R",N,"cm");
-    s += `<line x1="470" y1="24" x2="502" y2="24" stroke="${N}" stroke-width="2.6" stroke-linecap="round"/><text x="466" y="28" text-anchor="end" font-size="10.5" fill="${N}" font-family="var(--sans)">${t("AXI 读写","AXI read / write")}</text>`;
-    s += `<line x1="512" y1="24" x2="544" y2="24" stroke="${SN}" stroke-width="2.6" stroke-linecap="round"/><text x="550" y="28" font-size="10.5" fill="${SN}" font-family="var(--sans)">${t("监听 (AC/CR/CD)","snoop (AC/CR/CD)")}</text>`;
+    s += `<line x1="470" y1="24" x2="502" y2="24" stroke="${N}" stroke-width="2.6" stroke-linecap="round"/><text x="466" y="28" text-anchor="end" font-size="10.5" fill="${N}" font-family="var(--sans)">${"AXI read / write"}</text>`;
+    s += `<line x1="512" y1="24" x2="544" y2="24" stroke="${SN}" stroke-width="2.6" stroke-linecap="round"/><text x="550" y="28" font-size="10.5" fill="${SN}" font-family="var(--sans)">${"snoop (AC/CR/CD)"}</text>`;
     s += `</svg>`;
     return s;
   }
@@ -120,20 +120,20 @@
     const box=(x,y,n,f,fill)=>`<rect x="${x}" y="${y}" width="160" height="70" rx="8" fill="${fill}" stroke="#d0d7de" stroke-width="1.4"/><text x="${x+80}" y="${y+30}" text-anchor="middle" font-size="16" font-weight="700" fill="#24292f" font-family="var(--mono)">${n}</text><text x="${x+80}" y="${y+50}" text-anchor="middle" font-size="10.5" fill="#57606a" font-family="var(--sans)">${f}</text>`;
     const lab=(x,y,t2,rot)=>`<text x="${x}" y="${y}" text-anchor="middle" font-size="11.5" fill="#57606a" font-family="var(--mono)" stroke="#ffffff" stroke-width="3.5" paint-order="stroke"${rot?` transform="rotate(${rot} ${x} ${y})"`:""}>${t2}</text>`;
     const ar=(x1,y1,x2,y2,t2,lx,ly,rot)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#0969da" stroke-width="2" marker-end="url(#st)"/>`+lab(lx,ly,t2,rot);
-    s += box(45,50,"UC",t("唯一·干净","Unique Clean"),"#eef6ff");
-    s += box(360,50,"UD",t("唯一·脏","Unique Dirty"),"#fff3d6");
-    s += box(660,50,"SD",t("共享·脏","Shared Dirty"),"#fff3d6");
-    s += box(45,355,"SC",t("共享·干净","Shared Clean"),"#eef6ff");
-    s += box(660,355,"I",t("无效","Invalid"),"#ffffff");
-    s += ar(205,85,360,85, t("本地写命中","store hit (local)"),282,77);
-    s += ar(520,85,660,85, t("ReadShared 监听","ReadShared snoop"),590,77);
+    s += box(45,50,"UC","Unique Clean","#eef6ff");
+    s += box(360,50,"UD","Unique Dirty","#fff3d6");
+    s += box(660,50,"SD","Shared Dirty","#fff3d6");
+    s += box(45,355,"SC","Shared Clean","#eef6ff");
+    s += box(660,355,"I","Invalid","#ffffff");
+    s += ar(205,85,360,85, "store hit (local)",282,77);
+    s += ar(520,85,660,85, "ReadShared snoop",590,77);
     s += ar(740,120,740,355, "MakeInvalid",792,240);
     s += ar(660,390,205,390, "ReadShared / ReadClean",430,382);
     s += ar(125,355,125,120, "MakeUnique / CleanUnique",172,240);
     s += ar(125,120,740,355, "ReadUnique / ReadOnce",250,155,22);
     s += ar(440,120,740,355, "WriteBack",488,155,40);
     s += ar(740,120,205,355, "WriteClean",630,155,-25);
-    s += `<text x="440" y="440" text-anchor="middle" font-size="11" fill="#57606a" font-family="var(--sans)" stroke="#ffffff" stroke-width="3" paint-order="stroke">${t("本地写命中(UC→UD)是静默缓存升级,无总线事务; 失效/监听失效使行回到 I","store hit (UC→UD) is a silent cache upgrade — no bus transaction; eviction / snoop-invalidate return a line to I")}</text>`;
+    s += `<text x="440" y="440" text-anchor="middle" font-size="11" fill="#57606a" font-family="var(--sans)" stroke="#ffffff" stroke-width="3" paint-order="stroke">${"store hit (UC→UD) is a silent cache upgrade — no bus transaction; eviction / snoop-invalidate return a line to I"}</text>`;
     s += `</svg>`;
     return s;
   }
@@ -143,24 +143,24 @@
     s += `<defs><marker id="ca" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#57606a"/></marker><marker id="ca2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#57606a"/></marker></defs>`;
     const box=(x,y,w,h,title,lines,fill,border)=>{ let t2=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="${fill}" stroke="${border}" stroke-width="1.4"/><text x="${x+w/2}" y="${y+21}" text-anchor="middle" font-size="13" font-weight="700" fill="#1f2933" font-family="var(--sans)">${title}</text>`; const ls=Array.isArray(lines)?lines:(lines?[lines]:[]); ls.forEach((ln,k)=>t2+=`<text x="${x+w/2}" y="${y+41+k*13}" text-anchor="middle" font-size="10" fill="#4b5563" font-family="var(--mono)">${ln}</text>`); return t2; };
     const ar=(x1,y1,x2,y2,label,lx,ly,mk)=>{ const mx=lx||(x1+x2)/2,my=ly||(y1+y2)/2; s+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#57606a" stroke-width="1.5" marker-end="url(#${mk||"ca"})"/>`; if(label) s+=`<text x="${mx}" y="${my-5}" text-anchor="middle" font-size="10" fill="#57606a" font-family="var(--mono)" stroke="#ffffff" stroke-width="3" paint-order="stroke">${label}</text>`; };
-    s += `<rect x="20" y="18" width="900" height="328" rx="12" fill="none" stroke="${CB}" stroke-dasharray="6 4" stroke-width="1.4"/><text x="36" y="40" font-size="13" font-weight="700" fill="${CB}" font-family="var(--sans)">${t("C910 集群 · 多核","C910 cluster · multi-core")}</text>`;
-    s += box(50,46,250,78, t("核心 0","Core 0"),[t("IFU · I-Cache","IFU · I-Cache"),t("LSU · D-Cache","LSU · D-Cache"),t("BIU · ACE 主接口","BIU · ACE master")],CORE,CB);
-    s += box(340,46,250,78, t("核心 1","Core 1"),[t("IFU · I-Cache","IFU · I-Cache"),t("LSU · D-Cache","LSU · D-Cache"),t("BIU · ACE 主接口","BIU · ACE master")],CORE,CB);
-    s += box(630,46,250,78, t("核心 N","Core N"),[t("IFU · I-Cache","IFU · I-Cache"),t("LSU · D-Cache","LSU · D-Cache"),t("BIU · ACE 主接口","BIU · ACE master")],CORE,CB);
-    s += box(50,140,250,40, "PIU 0", t("处理器接口单元","processor interface unit"), PIU,PB);
-    s += box(340,140,250,40, "PIU 1", t("处理器接口单元","processor interface unit"), PIU,PB);
-    s += box(630,140,250,40, "PIU N", t("处理器接口单元","processor interface unit"), PIU,PB);
-    s += box(340,214,260,86, "CIU",[t("数据一致性接口单元","coherence interface unit"),t("仲裁 / 转发监听","arbitrate / forward snoop")],CIU,IB);
-    s += box(630,214,250,86, "L2 cache",[t("共享 1MB · inclusive","shared 1 MB · inclusive")],L2,LB);
-    ar(175,124,175,140, t("一致","coherent")); ar(465,124,465,140,""); ar(755,124,755,140,"");
+    s += `<rect x="20" y="18" width="900" height="328" rx="12" fill="none" stroke="${CB}" stroke-dasharray="6 4" stroke-width="1.4"/><text x="36" y="40" font-size="13" font-weight="700" fill="${CB}" font-family="var(--sans)">${"C910 cluster · multi-core"}</text>`;
+    s += box(50,46,250,78, "Core 0",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
+    s += box(340,46,250,78, "Core 1",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
+    s += box(630,46,250,78, "Core N",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
+    s += box(50,140,250,40, "PIU 0", "processor interface unit", PIU,PB);
+    s += box(340,140,250,40, "PIU 1", "processor interface unit", PIU,PB);
+    s += box(630,140,250,40, "PIU N", "processor interface unit", PIU,PB);
+    s += box(340,214,260,86, "CIU",["coherence interface unit","arbitrate / forward snoop"],CIU,IB);
+    s += box(630,214,250,86, "L2 cache",["shared 1 MB · inclusive"],L2,LB);
+    ar(175,124,175,140, "coherent"); ar(465,124,465,140,""); ar(755,124,755,140,"");
     ar(175,180,360,214, "PIU → CIU"); ar(465,180,465,214,""); ar(755,180,580,214,"");
     ar(600,257,630,257, "CIU → L2");
-    s += box(240,390,460,80,"ACE bus",[t("片上互连 · snoop","on-chip interconnect · snoop")],BUS,BB);
-    ar(340,346,340,390, t("BIU ×N · 非缓存 / IO","BIU ×N · non-cache / IO"),250,376);
-    ar(520,346,520,390, t("CIU · ACE slave / snoop","CIU · ACE slave / snoop"),628,376);
-    s += box(180,510,260,50, t("内存","Memory"),[t("DDR / IO","DDR / I/O")],BUS,BB);
-    s += box(500,510,260,50, t("其他 ACE 设备","Other ACE"),[t("加速器 / 其他集群","accelerator / other cluster")],BUS,BB);
-    ar(330,470,300,510, t("写内存","to memory"),300,494,"ca2");
+    s += box(240,390,460,80,"ACE bus",["on-chip interconnect · snoop"],BUS,BB);
+    ar(340,346,340,390, "BIU ×N · non-cache / IO",250,376);
+    ar(520,346,520,390, "CIU · ACE slave / snoop",628,376);
+    s += box(180,510,260,50, "Memory",["DDR / I/O"],BUS,BB);
+    s += box(500,510,260,50, "Other ACE",["accelerator / other cluster"],BUS,BB);
+    ar(330,470,300,510, "to memory",300,494,"ca2");
     ar(530,470,560,510,"",600,494);
     s += `</svg>`;
     return s;
