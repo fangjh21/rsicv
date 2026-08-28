@@ -49,49 +49,45 @@
   function c910SVG(){
     const CORE="#e1f5fe", CB="#01579b", PIU="#fff9c4", PB="#b45309", CIU="#f3e5f5", IB="#6a1b9a";
     const L2="#fff3e0", LB="#e65100", BUS="#e8f5e9", BB="#1b5e20";
-    let s = `<svg width="940" height="620" viewBox="0 0 940 620" xmlns="http://www.w3.org/2000/svg" role="img">`;
-    // cluster container
-    s += `<rect x="18" y="16" width="904" height="252" rx="10" fill="none" stroke="${CB}" stroke-dasharray="6 4" stroke-width="1.4"/>`;
-    s += `<text x="34" y="40" font-size="12.5" font-weight="700" fill="${CB}" font-family="var(--sans)">C910 cluster · multi-core</text>`;
+    let s = `<svg width="940" height="560" viewBox="0 0 940 560" xmlns="http://www.w3.org/2000/svg" role="img">`;
+    s += `<defs><marker id="ca" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#57606a"/></marker></defs>`;
     const box = (x,y,w,h,title,lines,fill,border) => {
-      let t = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="7" fill="${fill}" stroke="${border}" stroke-width="1.4"/>`;
-      t += `<text x="${x+w/2}" y="${y+20}" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1f2933" font-family="var(--sans)">${title}</text>`;
-      (lines||[]).forEach((ln,k)=> t += `<text x="${x+w/2}" y="${y+38+k*13}" text-anchor="middle" font-size="9.5" fill="#4b5563" font-family="var(--mono)">${ln}</text>`);
+      let t = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="${fill}" stroke="${border}" stroke-width="1.4"/>`;
+      t += `<text x="${x+w/2}" y="${y+22}" text-anchor="middle" font-size="13" font-weight="700" fill="#1f2933" font-family="var(--sans)">${title}</text>`;
+      const ls = Array.isArray(lines) ? lines : (lines ? [lines] : []);
+      ls.forEach((ln,k)=> t += `<text x="${x+w/2}" y="${y+42+k*13}" text-anchor="middle" font-size="10" fill="#4b5563" font-family="var(--mono)">${ln}</text>`);
       return t;
     };
-    const arrow = (x1,y1,x2,y2,label,lx,ly) => { s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#57606a" stroke-width="1.4" marker-end="url(#ca)"/><text x="${lx}" y="${ly}" text-anchor="middle" font-size="9" fill="#57606a" font-family="var(--mono)">${label}</text>`; };
-    s += `<defs><marker id="ca" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#57606a"/></marker></defs>`;
-    // cores
-    const coreY=46, coreH=108;
-    s += box(60,coreY,250,coreH,"Core 0",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
-    s += box(330,coreY,250,coreH,"Core 1",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
-    s += box(600,coreY,280,coreH,"Core N",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
-    // PIU
-    const piuY=176, piuH=52;
-    s += box(60,piuY,250,piuH,"PIU 0",["processor interface unit"],PIU,PB);
-    s += box(330,piuY,250,piuH,"PIU 1",["processor interface unit"],PIU,PB);
-    s += box(600,piuY,280,piuH,"PIU N",["processor interface unit"],PIU,PB);
-    // row 2: CIU / L2 / ACE bus
-    const r2Y=300;
-    s += box(60,r2Y,250,84,"CIU",["coherence interface unit","arbitrate / forward snoop"],CIU,IB);
-    s += box(340,r2Y,220,84,"L2 cache",["shared 1 MB · inclusive"],L2,LB);
-    s += box(600,r2Y,280,84,"ACE bus",["on-chip interconnect · snoop ch"],BUS,BB);
-    // row 3: memory / other
-    const r3Y=430;
-    s += box(340,r3Y,220,70,"Memory",["DDR / I/O"],BUS,BB);
-    s += box(600,r3Y,280,70,"Other ACE",["accelerator / other cluster"],BUS,BB);
-    // arrows (representative, labeled)
-    arrow(185,coreY+coreH,185,piuY,"coherent",185,coreY+coreH+11);
-    arrow(455,coreY+coreH,455,piuY,"",455,coreY+coreH+11);
-    arrow(740,coreY+coreH,740,piuY,"",740,coreY+coreH+11);
-    arrow(185,piuY+piuH,185,r2Y,"PIU → CIU",300,r2Y-6);
-    arrow(455,piuY+piuH,320,r2Y,"",330,r2Y-6);
-    arrow(740,piuY+piuH,330,r2Y,"",330,r2Y+10);
-    arrow(310,r2Y+42,340,r2Y+42,"",325,r2Y+34);
-    arrow(500,r2Y+84,600,r2Y+84,"",550,r2Y+78);
-    arrow(740,r2Y+84,740,r3Y+70,"",740,r2Y+98);
-    arrow(600,r2Y+84,480,r3Y+70,"",530,r2Y+100);
-    arrow(60,r2Y+42,60,20,"snoop in / out",150,14);
+    const ar = (x1,y1,x2,y2,label) => { const mx=(x1+x2)/2,my=(y1+y2)/2; s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#57606a" stroke-width="1.5" marker-end="url(#ca)"/>`; if(label) s += `<text x="${mx}" y="${my-5}" text-anchor="middle" font-size="10" fill="#57606a" font-family="var(--mono)" stroke="#ffffff" stroke-width="3" paint-order="stroke">${label}</text>`; };
+    // cluster
+    s += `<rect x="20" y="18" width="900" height="196" rx="12" fill="none" stroke="${CB}" stroke-dasharray="6 4" stroke-width="1.4"/>`;
+    s += `<text x="36" y="40" font-size="13" font-weight="700" fill="${CB}" font-family="var(--sans)">C910 cluster · multi-core</text>`;
+    // cores + PIUs
+    s += box(50,46,250,84,"Core 0",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
+    s += box(340,46,250,84,"Core 1",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
+    s += box(630,46,250,84,"Core N",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
+    s += box(50,150,250,46,"PIU 0","processor interface unit",PIU,PB);
+    s += box(340,150,250,46,"PIU 1","processor interface unit",PIU,PB);
+    s += box(630,150,250,46,"PIU N","processor interface unit",PIU,PB);
+    // cores -> PIUs (vertical)
+    ar(175,130,175,150,"coherent");
+    ar(465,130,465,150,"");
+    ar(755,130,755,150,"");
+    // PIUs -> CIU (clean fan)
+    ar(175,196,175,250,"PIU → CIU");
+    ar(465,196,300,250,"");
+    ar(755,196,280,250,"");
+    // row 3
+    s += box(50,250,250,84,"CIU",["coherence interface unit","arbitrate / forward snoop"],CIU,IB);
+    s += box(340,250,220,84,"L2 cache",["shared 1 MB · inclusive"],L2,LB);
+    s += box(630,250,250,84,"ACE bus",["on-chip interconnect · snoop"],BUS,BB);
+    ar(300,292,340,292,"CIU → L2");
+    ar(755,214,755,250,"");   // cluster -> ACE bus (clean vertical)
+    // row 4
+    s += box(340,400,220,66,"Memory",["DDR / I/O"],BUS,BB);
+    s += box(630,400,250,66,"Other ACE",["accelerator / other cluster"],BUS,BB);
+    ar(755,334,755,400,"");
+    ar(755,334,470,400,"to memory");
     s += `</svg>`;
     return s;
   }
@@ -129,24 +125,24 @@
   }
 
   function statesSVG(){
-    let s = `<svg width="760" height="360" viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img">`;
+    let s = `<svg width="820" height="470" viewBox="0 0 820 470" xmlns="http://www.w3.org/2000/svg" role="img">`;
     s += `<defs><marker id="st" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0969da"/></marker></defs>`;
-    const box = (x,y,w,h,n,f,fill) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${fill}" stroke="#d0d7de"/><text x="${x+w/2}" y="${y+h/2+1}" text-anchor="middle" font-size="14" font-weight="700" fill="#24292f" font-family="var(--mono)">${n}</text><text x="${x+w/2}" y="${y+h/2+16}" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--sans)">${f}</text>`;
-    const arrow = (x1,y1,x2,y2,label,lx,ly) => { s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#0969da" stroke-width="1.5" marker-end="url(#st)"/><text x="${lx}" y="${ly}" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--mono)">${label}</text>`; };
-    s += box(40,40,130,56,"UC","Unique Clean","#eef6ff");
-    s += box(315,40,130,56,"UD","Unique Dirty","#fff3d6");
-    s += box(590,40,130,56,"SD","Shared Dirty","#fff3d6");
-    s += box(40,300,130,56,"SC","Shared Clean","#eef6ff");
-    s += box(590,300,130,56,"I","Invalid","#ffffff");
-    arrow(170,68,315,68,"write",242,60);
-    arrow(445,68,590,68,"ReadShared snoop",517,60);
-    arrow(655,96,655,300,"MakeInvalid",690,200);
-    arrow(590,328,170,328,"ReadShared / ReadClean",380,318);
-    arrow(105,300,105,96,"MakeUnique / CleanUnique",58,200);
-    arrow(545,300,190,96,"ReadUnique / ReadOnce",330,190);
-    arrow(380,96,545,300,"WriteBack",500,195);
-    arrow(590,96,145,300,"WriteClean",330,250);
-    s += `<text x="380" y="356" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--sans)">evict / snoop invalidate return the line to I</text>`;
+    const box = (x,y,n,f,fill) => `<rect x="${x}" y="${y}" width="170" height="76" rx="8" fill="${fill}" stroke="#d0d7de" stroke-width="1.4"/><text x="${x+85}" y="${y+34}" text-anchor="middle" font-size="17" font-weight="700" fill="#24292f" font-family="var(--mono)">${n}</text><text x="${x+85}" y="${y+56}" text-anchor="middle" font-size="11" fill="#57606a" font-family="var(--sans)">${f}</text>`;
+    const lab = (x,y,t) => `<text x="${x}" y="${y}" text-anchor="middle" font-size="11.5" fill="#57606a" font-family="var(--mono)" stroke="#ffffff" stroke-width="3" paint-order="stroke">${t}</text>`;
+    const ar = (x1,y1,x2,y2,t,lx,ly) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#0969da" stroke-width="2" marker-end="url(#st)"/>${lab(lx,ly,t)}`;
+    // states
+    s += box(60,120,"UC","Unique Clean","#eef6ff");
+    s += box(340,64,"UD","Unique Dirty","#fff3d6");
+    s += box(600,120,"SD","Shared Dirty","#fff3d6");
+    s += box(600,350,"I","Invalid","#ffffff");
+    s += box(60,350,"SC","Shared Clean","#eef6ff");
+    // ring transitions
+    s += ar(230,158,346,110,"write",300,128);
+    s += ar(510,110,604,158,"ReadShared snoop",560,128);
+    s += ar(685,196,685,354,"MakeInvalid",745,286);
+    s += ar(600,388,220,388,"ReadShared / ReadClean",410,378);
+    s += ar(145,350,145,192,"MakeUnique / CleanUnique",62,268);
+    s += `<text x="410" y="442" text-anchor="middle" font-size="11.5" fill="#57606a" font-family="var(--sans)" stroke="#ffffff" stroke-width="3" paint-order="stroke">Also: ReadUnique I→UC, WriteBack UD→I, WriteClean SD→SC, and eviction / snoop invalidate → I (see table)</text>`;
     s += `</svg>`;
     return s;
   }
