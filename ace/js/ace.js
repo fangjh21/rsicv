@@ -93,33 +93,37 @@
   }
 
   function channelsSVG(){
-    const N = "#0969da", SN = "#8250df";
-    let s = `<svg width="760" height="330" viewBox="0 0 760 330" xmlns="http://www.w3.org/2000/svg" role="img">`;
+    const N = "#0969da", SN = "#8250df", GB="#57606a";
+    let s = `<svg width="820" height="360" viewBox="0 0 820 360" xmlns="http://www.w3.org/2000/svg" role="img">`;
     s += `<defs>
-      <marker id="cn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${N}"/></marker>
-      <marker id="cs" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${SN}"/></marker>
+      <marker id="cn" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L11 6 L1 11 z" fill="${N}"/></marker>
+      <marker id="cs" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L11 6 L1 11 z" fill="${SN}"/></marker>
+      <marker id="cm" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L11 6 L1 11 z" fill="${N}"/></marker>
     </defs>`;
-    const box = (x,y,w,h,title,sub) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="#f6f8fa" stroke="#d0d7de"/><text x="${x+w/2}" y="${y+h/2-2}" text-anchor="middle" font-size="13" font-weight="600" fill="#24292f" font-family="var(--sans)">${title}</text><text x="${x+w/2}" y="${y+h/2+15}" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--mono)">${sub}</text>`;
-    const arrow = (y,label,dir,c,marker) => {
-      const x1 = dir==="r" ? 182 : 332, x2 = dir==="r" ? 332 : 182;
-      s += `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${c}" stroke-width="2" marker-end="url(#${marker})"/>`;
-      s += `<text x="${(x1+x2)/2}" y="${y-6}" text-anchor="middle" font-size="10.5" fill="${c}" font-family="var(--mono)">${label}</text>`;
-    };
-    s += box(30,50,150,220,"CPU 0 · L1","requester (RN)");
-    s += box(330,50,170,220,"Interconnect · L2","coherence point");
-    s += box(600,95,140,130,"Memory","controller · DDR");
-    arrow(80,"AW","r",N,"cn");
-    arrow(106,"AR","r",N,"cn");
-    arrow(132,"W","r",N,"cn");
-    arrow(158,"AC","l",SN,"cs");
-    arrow(184,"CR","r",SN,"cs");
-    arrow(210,"CD","r",SN,"cs");
-    arrow(236,"B","l",N,"cn");
-    arrow(262,"R","l",N,"cn");
-    const far = (y1,label,lr) => { const x1=lr? 600:500, x2=lr? 500:600, my=(x1+x2)/2; s+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y1}" stroke="${N}" stroke-width="2" marker-end="url(#cn)"/><text x="${my}" y="${y1-6}" text-anchor="middle" font-size="10.5" fill="${N}" font-family="var(--mono)">${label}</text>`; };
-    far(140,"AW/W",0); far(190,"AR",0); far(165,"B",1); far(215,"R",1);
-    s += `<line x1="466" y1="34" x2="496" y2="34" stroke="${N}" stroke-width="2"/><text x="462" y="38" text-anchor="end" font-size="9.5" fill="${N}" font-family="var(--sans)">AXI read / write</text>`;
-    s += `<line x1="512" y1="34" x2="542" y2="34" stroke="${SN}" stroke-width="2"/><text x="548" y="38" font-size="9.5" fill="${SN}" font-family="var(--sans)">snoop (AC/CR/CD)</text>`;
+    const box = (x,y,w,h,title,sub,accent) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.3"/><rect x="${x}" y="${y}" width="5" height="${h}" rx="2" fill="${accent}"/><text x="${x+w/2+3}" y="${y+h/2-4}" text-anchor="middle" font-size="14" font-weight="700" fill="#24292f" font-family="var(--sans)">${title}</text><text x="${x+w/2+3}" y="${y+h/2+15}" text-anchor="middle" font-size="10" fill="#57606a" font-family="var(--mono)">${sub}</text>`;
+    const ar = (x1,x2,y,label,c,dir,mk) => { const xa=dir==="r"?x2:x1, xb=dir==="r"?x1:x2; s+=`<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${c}" stroke-width="2.4" stroke-linecap="round" marker-end="url(#${mk})"/><text x="${(x1+x2)/2}" y="${y-7}" text-anchor="middle" font-size="11" fill="${c}" font-family="var(--mono)" stroke="#ffffff" stroke-width="3.5" paint-order="stroke">${label}</text>`; };
+    // participants
+    s += box(40,44,160,262,"CPU · L1","requester (RN)",N);
+    s += box(320,44,180,262,"Interconnect","coherence point",GB);
+    s += box(620,90,150,170,"Memory","controller · DDR",GB);
+    const Y=[84,114,144,174,204,234,264,292];
+    ar(200,320,Y[0],"AW",N,"r","cn");
+    ar(200,320,Y[1],"AR",N,"r","cn");
+    ar(200,320,Y[2],"W",N,"r","cn");
+    ar(200,320,Y[3],"AC",SN,"l","cs");
+    ar(200,320,Y[4],"CR",SN,"r","cs");
+    ar(200,320,Y[5],"CD",SN,"r","cs");
+    ar(200,320,Y[6],"B",N,"l","cn");
+    ar(200,320,Y[7],"R",N,"l","cn");
+    // downstream
+    const M=[140,180,220,258];
+    ar(500,620,M[0],"AW/W",N,"r","cm");
+    ar(500,620,M[1],"AR",N,"r","cm");
+    ar(620,500,M[2],"B",N,"l","cm");
+    ar(620,500,M[3],"R",N,"l","cm");
+    // legend
+    s += `<line x1="470" y1="24" x2="502" y2="24" stroke="${N}" stroke-width="2.6" stroke-linecap="round"/><text x="466" y="28" text-anchor="end" font-size="10.5" fill="${N}" font-family="var(--sans)">AXI read / write</text>`;
+    s += `<line x1="512" y1="24" x2="544" y2="24" stroke="${SN}" stroke-width="2.6" stroke-linecap="round"/><text x="550" y="28" font-size="10.5" fill="${SN}" font-family="var(--sans)">snoop (AC/CR/CD)</text>`;
     s += `</svg>`;
     return s;
   }
