@@ -83,7 +83,7 @@
     <p>它服务于 <b>big.LITTLE / 多核簇</b> 这一类「带缓存的多个主设备共享同一内存」的 SoC 架构 —— 正是玄铁 C910 这类 RISC-V 多核处理器要接入的互连场景。</p>
   </div>
   <div class="card">
-    <h3>本页结构（今天将迭代 ≥10 版）</h3>
+    <h3>页面结构</h3>
     <ul class="toc">
       <li><a href="#/principles">① 原理：为什么需要一致性、MOESI/模型</a></li>
       <li><a href="#/protocol">② 协议内容：通道、握手、事务类</a></li>
@@ -95,7 +95,7 @@
       <li><a href="#/formal">⑧ ACE 形式验证论文精讲</a></li>
     </ul>
   </div>
-  <div class="note warn"><b>⚠ 关键澄清：你贴的「WriteUniquePtl / DBIDResp / SnpCleanInvalid / NCBWrData / CompDBIDResp」是 AMBA <u>CHI</u> 的流程，不是 ACE。</b>
+  <div class="note warn"><b>注意：「WriteUniquePtl / DBIDResp / SnpCleanInvalid / NCBWrData / CompDBIDResp」是 AMBA <u>CHI</u> 的流程，不是 ACE。</b>
   ACE 基于 AXI 通道 + 监听（snoop），没有 DBID 分配、没有 Comp 完成报文；其独占写用 <code>AWSNOOP=WriteUnique</code> + AC 通道 <code>MakeInvalid</code> 监听实现。二者语义等价但机制不同，本站按 ACE 讲，并在 <a href="#/writeunique">WriteUnique</a> 一节对照 CHI。</div>
   <div class="diagram">${writeUniqueSVG()}</div>`;
 
@@ -129,7 +129,7 @@
       <tr><td><code>SC</code> (Shared Clean)</td><td>多个副本，与内存一致</td><td>❌</td><td>要写必须先升级为 Unique</td></tr>
       <tr><td><code>SD</code> (Shared Dirty)</td><td>多个副本，其中一个持有脏数据</td><td>❌</td><td>写前需回写+失效其他副本</td></tr>
     </table>
-    <p>直觉：<b>Unique = 只有我有</b>（可以自己改）；<b>Shared = 大家都有</b>（改之前要通知别人）；<b>Dirty = 我比内存新</b>（回写内存时要把脏数据交出来）。</p>
+    <p>直觉：<b>Unique = 独占</b>（可静默修改）；<b>Shared = 共享</b>（修改前需通知其他副本）；<b>Dirty = 比内存新</b>（回写内存时需交出脏数据）。</p>
   </div>
 
   <h2>4. 两种实现机制：Snoop vs Directory</h2>
@@ -248,7 +248,7 @@
 
   <h2>4. 屏障与低功耗（不是「BAR 信号线」）</h2>
   <div class="card">
-    <p><b>更正</b>：ACE 的 <code>MemoryBarrier</code> / <code>SyncBarrier</code> 是<b>事务类型</b>（在 AR/AW 上发起），<b>没有 AWBAR/ARBAR 这种专用信号线</b>（网上部分简图写的 ARBAR/AWBAR 不是标准 ACE 信号）。AMBA 5 已移除屏障事务编码。</p>
+    <p><b>注意</b>：ACE 的 <code>MemoryBarrier</code> / <code>SyncBarrier</code> 是<b>事务类型</b>（在 AR/AW 上发起），<b>没有 AWBAR/ARBAR 这种专用信号线</b>（网上部分简图写的 ARBAR/AWBAR 不是标准 ACE 信号）。AMBA 5 已移除屏障事务编码。</p>
     <p><b>低功耗 C-channel（ACE-Lite）</b>：<code>CACTIVE</code>（主设备有无未完成事务）、<code>CSYSREQ</code>（系统请求进入/退出低功耗）、<code>CSYSACK</code>（主设备确认）。C910 的 <code>biu_pad_cactive / pad_biu_csysreq / biu_pad_csysack</code> 即此通道 —— 它是电源门控握手，不是一致性。</p>
   </div>
 
@@ -319,9 +319,9 @@
     <p>屏障<b>不是</b>通过 ARBAR/AWBAR 专用信号线携带；AMBA 5 已移除 ACE 屏障事务编码。</p>
   </div>
 
-  <h2>AMBA 4 vs AMBA 5（务必知道）</h2>
+  <h2>AMBA 4 与 AMBA 5 的版本差异</h2>
   <div class="card">
-    <p>现行 AMBA AXI 规范（IHI 0022 <b>Issue L</b>，2025-08）是 AMBA 5，它<b>重排了读事务编码</b>（ReadShared 移到 0b0001、ReadClean 0b0010 等）并<b>移除了屏障事务</b>。本站按经典 <b>AMBA 4 ACE</b> 讲解（你关心的 WriteUnique/WriteBack/ReadUnique 等命名均源于此），需要对照最新规范时请以 IHI 0022 原文为准。</p>
+    <p>现行 AMBA AXI 规范（IHI 0022 <b>Issue L</b>，2025-08）是 AMBA 5，它<b>重排了读事务编码</b>（ReadShared 移到 0b0001、ReadClean 0b0010 等）并<b>移除了屏障事务</b>。本页按经典 <b>AMBA 4 ACE</b> 讲解（WriteUnique/WriteBack/ReadUnique 等命名均源于此）；如需对照最新规范，请以 IHI 0022 原文为准。</p>
   </div>
 
   <div class="note"><b>依据</b>：编码表参照 ARM IHI 0022（AMBA AXI/ACE 规范）与 ARM DynamIQ/Cortex-A35 TRM 的信号位宽；ACSNoop 单独枚举与 CRRESP 位序在规范 Snoop 章节，建议引用前再核对一遍。</div>`;
@@ -410,9 +410,9 @@
     </ol>
   </div>
   <div class="card">
-    <h3>ACE vs CHI 对照（你贴的那张图）</h3>
+    <h3>ACE 与 CHI 对照</h3>
     <table>
-      <tr><th>概念</th><th>AMBA ACE（本站）</th><th>AMBA CHI（你贴的例子）</th></tr>
+      <tr><th>概念</th><th>AMBA ACE（本站）</th><th>AMBA CHI</th></tr>
       <tr><td>传输层</td><td>AXI4 通道（AW/W/B/AR/R）+ AC/CR/CD</td><td>报文 flit（REQ/RSP/DAT/SNP）</td></tr>
       <tr><td>独占写事务</td><td><code>AWSNOOP=WriteUnique</code></td><td><code>WriteUniquePtl</code></td></tr>
       <tr><td>缓冲分配响应</td><td>—（无此概念）</td><td><code>DBIDResp</code></td></tr>
@@ -420,8 +420,8 @@
       <tr><td>写数据</td><td><code>W</code> 通道</td><td><code>NCBWrData</code></td></tr>
       <tr><td>完成</td><td><code>B + WACK</code></td><td><code>Comp</code> / <code>CompDBIDResp</code></td></tr>
     </table>
-    <h3>附：你提供的 CHI 版流程（WriteUniquePtl）</h3>
-    <p>下面是把它按同样画风重绘的 CHI 时序（报文名与你贴的一致，仅做可视化）：</p>
+    <h3>附：CHI 版流程（WriteUniquePtl）</h3>
+    <p>以下是同一流程的 CHI 时序（报文名与上表一致，仅做可视化）：</p>
     <div class="diagram">${seqSVG(
       ["RN","HN (Home)","SN","Peer RN"],
       [
@@ -434,7 +434,7 @@
         [2,1,"CompDBIDResp","写完成响应"],
         [1,0,"Comp","全局完成"]
       ],
-      { title:"AMBA CHI — WriteUniquePtl（你贴的原始流程，可视化对照）", h:560, w:820 }
+      { title:"AMBA CHI — WriteUniquePtl（可视化对照）", h:560, w:820 }
     )}</div>
     <p>对照看出两条主线：<b>ACE 用通道握手 + 监听（AC/CR/CD），CHI 用报文 + 分离响应（DBIDResp/Comp）</b>；「先失效别处副本再独占写」这个语义两者完全一致。</p>
   </div>`;
@@ -509,11 +509,11 @@
     <p>这正是本站 <a href="#/writeunique">WriteUnique</a> 时序图在 C910 内部逻辑上的具体落地。</p>
   </div>
 
-  <div class="note"><b>诚实声明</b>：开源的 openC910 固定为 2 核 + 对外 AXI4；<b>多簇（如 TH1520 的 4 核）跨簇一致性不在此开源 RTL 内</b>。我核对了 ACE 信号位宽与 AMBA ACE 一致，但未逐一复推每条 snoop 事务的 ARM 规范编码 —— C910 用户手册明确「参考 AMBA AXI/ACE Protocol Specification」。</div>
+  <div class="note"><b>适用范围说明</b>：开源的 openC910 固定为 2 核 + 对外 AXI4；<b>多簇（如 TH1520 的 4 核）跨簇一致性不在此开源 RTL 内</b>。本页核对了 ACE 信号位宽与 AMBA ACE 一致，但未逐一复推每条 snoop 事务的 ARM 规范编码 —— C910 用户手册明确「参考 AMBA AXI/ACE Protocol Specification」。</div>
   <p class="lead" style="margin-top:16px">参考：<a href="https://github.com/T-head-Semi/openc910">github.com/T-head-Semi/openc910</a>（<code>C910_RTL_FACTORY/gen_rtl/</code>）、TH1520 论文 arXiv:2311.12808。</p>`;
 
   S.formal = () => `<h1>ACE 协议形式验证论文精讲</h1>
-  <p class="lead">这一章调研「用形式方法验证 ACE」的文献，优中选优讲 3 篇，再给相关方向与工业现状。先说结论：<b>ACE 的学术形式验证基本是一个小组（INRIA/Verimag，CADP 工具链）的高质量成果 + 工业断言 VIP</b>，可复现、可引用的核心就那几篇。</p>
+  <p class="lead">这一章综述「用形式方法验证 ACE」的文献，精选 3 篇讲解，再给相关方向与工业现状。结论：<b>ACE 的学术形式验证基本是一个小组（INRIA/Verimag，CADP 工具链）的高质量成果 + 工业断言 VIP</b>，可复现、可引用的核心就那几篇。</p>
 
   <h2>文献格局：两类问题</h2>
   <div class="card">
@@ -575,7 +575,7 @@
     </table>
   </div>
 
-  <h2>给你的方法论总结</h2>
+  <h2>方法论总结</h2>
   <div class="card">
     <ul>
       <li><b>先形式化「规范」</b>：把 ACE 拆成命名通道 + 单一一致性点，用 LNT/CADP（或等价的进程代数）建立<b>参数化参考模型</b> —— 这是可复用、可扩展的核心。</li>
@@ -585,7 +585,7 @@
     </ul>
   </div>
 
-  <div class="note"><b>引用的严谨性</b>：论文一/二/三的书目信息已核对（DOI 见上）。相关工作中的次要作者名单与 ADVOCAT 的精确求解器，建议在正式引用前按链接再核一遍（我已在上面标注）。</div>`;
+  <div class="note"><b>引用的严谨性</b>：论文一/二/三的书目信息已核对（DOI 见上）。相关工作中的次要作者名单与 ADVOCAT 的精确求解器，建议在正式引用前按链接再核一遍。</div>`;
 
   /* ---------------- router ---------------- */
   const ROUTES = ["overview","principles","protocol","signals","transactions","timing","writeunique","c910","formal"];
