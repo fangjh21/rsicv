@@ -318,7 +318,69 @@
   <div class="note"><b>说明</b>：编码表对应 ARM <b>IHI 0022</b>（AMBA AXI/ACE 规范附录 G）。若你手头规范版本较新，请以规范原文为准；本站编码已按 IHI0022H 核对。</div>`;
 
   S.timing = () => `<h1>事务时序图</h1>
-  <div class="card"><p>Read/Write 系列时序图正在撰写，将在第 6 版补齐。</p></div>`;
+  <p class="lead">每个事务都是「请求 →（可能监听）→ 数据 → 响应/完成」的流程。下面按访问类型给出时序图，参与者为：请求者 RN、互连 ICN、对端缓存 Peer、内存 MEM。</p>
+
+  <h2>1. ReadUnique（读并取得独占，读改写前奏）</h2>
+  <div class="card">
+    <div class="diagram">${seqSVG(
+      ["RN","ICN","Peer","MEM"],
+      [
+        [0,1,"AR: ReadUnique","ARSNOOP=ReadUnique, ARADDR"],
+        [1,2,"Snoop: MakeInvalid","ACSNOOP=MakeInvalid"],
+        [2,1,"Snoop resp","CRRESP=PassClean / PassDirty (CD if dirty)"],
+        [1,0,"R: data + RACK","RRESP=EXOKAY, RACK=1 → RN owns Unique"]
+      ],
+      { title:"ReadUnique — 读并独占（miss 且需使对端失效）", h:330, w:820 }
+    )}</div>
+  </div>
+
+  <h2>2. ReadShared（读共享，miss）</h2>
+  <div class="card">
+    <div class="diagram">${seqSVG(
+      ["RN","ICN","Peer","MEM"],
+      [
+        [0,1,"AR: ReadShared","ARSNOOP=ReadShared, ARADDR"],
+        [1,2,"Snoop: ReadClean","ACSNOOP=ReadClean"],
+        [2,1,"Snoop resp","CRRESP=PassDirty/PassClean (CD if dirty)"],
+        [1,0,"R: data","RRESP=OKAY, RACK → RN keeps Shared"]
+      ],
+      { title:"ReadShared — 读共享（对端可保留 Shared 副本）", h:330, w:820 }
+    )}</div>
+  </div>
+
+  <h2>3. WriteUnique（独占写，本站重点）</h2>
+  <div class="card">
+    <div class="diagram">${writeUniqueSVG()}</div>
+    <p>详细步骤见 <a href="#/writeunique">WriteUnique 事务流程</a>。</p>
+  </div>
+
+  <h2>4. WriteBack / WriteClean（自己交数据，无监听）</h2>
+  <div class="card">
+    <div class="diagram">${seqSVG(
+      ["RN (cache)","ICN","MEM",""],
+      [
+        [0,1,"AW: WriteBack/WriteClean","AWSNOOP=WriteBack 或 WriteClean"],
+        [0,1,"W: data","WLAST 末拍"],
+        [1,2,"WriteNoSnoop","写内存"],
+        [2,1,"B: BRESP","BRESP=OKAY"],
+        [1,0,"B + WACK","WACK=1 → 完成（WriteBack 后行被丢弃，WriteClean 后保留为 Clean）"]
+      ],
+      { title:"WriteBack / WriteClean — 脏行回写，无监听", h:400, w:760 }
+    )}</div>
+  </div>
+
+  <h2>5. 读/写握手的「波形」视角</h2>
+  <div class="card">
+    <p>时序图是「参与者视角」，而 RTL 里看到的是<b>时钟沿上的 VALID/READY 波形</b>。规则（贯穿所有 ACE 通道）：</p>
+    <ul>
+      <li>数据只在 <code>VALID && READY</code> 同时为 1 的上升沿传输。</li>
+      <li><code>VALID</code> 一旦拉高必须保持到握手完成；<code>READY</code> 可随时变化。</li>
+      <li>读数据 <code>RDATA</code> 与 <code>RVALID</code> 同步；写数据 <code>WDATA/WSTRB</code> 与 <code>WVALID</code> 同步；<code>WLAST</code> 标末拍。</li>
+      <li>一致性监听（AC/CR/CD）与数据通道<b>可并行</b>，这正是 WriteUnique 里「监听 + 写数据同时进行」的来源。</li>
+    </ul>
+  </div>
+
+  <div class="note"><b>下一节</b>：<a href="#/writeunique">WriteUnique 详解</a>（含与 CHI 的对照）。</div>`;
 
   S.writeunique = () => `<h1>WriteUnique 事务流程（ACE）</h1>
   <div class="card">
