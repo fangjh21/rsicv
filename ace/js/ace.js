@@ -17,12 +17,13 @@
       const y = top + (i+1)*gap;
       const from = X[m[0]], to = X[m[1]];
       const dir = from < to ? 1 : -1;
-      const x0 = from + dir*12, x1 = to - dir*12;
+      const x0 = from + dir*16, x1 = to - dir*16;
       s += `<line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="#0969da" stroke-width="1.6"/>`;
       s += `<polygon points="${x1},${y} ${x1-dir*8},${y-4} ${x1-dir*8},${y+4}" fill="#0969da"/>`;
       const mid = (from+to)/2;
-      s += `<text x="${mid}" y="${y-6}" text-anchor="middle" font-size="10.5" fill="#24292f" font-family="var(--mono)">${esc(m[2])}</text>`;
-      if(m[3]) s += `<text x="${mid}" y="${y+13}" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--mono)">${esc(m[3])}</text>`;
+      const block = [m[2], m[3]].filter(Boolean).join("\n").split("\n");
+      const oy = y - 8 - (block.length-1)*5.5;
+      block.forEach((ln,k)=>{ s += `<text x="${mid}" y="${oy+k*11}" text-anchor="middle" font-size="10" fill="#24292f" font-family="var(--mono)">${esc(ln)}</text>`; });
     });
     s += `</svg>`;
     return s;
@@ -30,108 +31,67 @@
 
   function writeUniqueSVG(){
     return seqSVG(
-      ["RN (Requester)", "ICN (Interconnect)", "Peer cache", "Memory"],
+      ["CPU 0 · L1","Interconnect · L2","CPU 1 · L1","CPU 2 · L1","Memory"],
       [
-        [0,1,"AW: WriteUnique","AWSNOOP=WriteUnique, AWADDR, AWCACHE"],
-        [1,2,"Snoop: MakeInvalid","ACVALID/ACADDR, ACSNOOP=MakeInvalid"],
-        [2,1,"Snoop resp","CRVALID/CRRESP (CD if dirty)"],
-        [0,1,"W: write data","WVALID/WDATA/WSTRB/WLAST"],
-        [1,3,"WriteNoSnoop","AW + W to memory (downstream)"],
-        [3,1,"B: BRESP","BVALID/BRESP=OKAY"],
-        [1,0,"B + WACK","BVALID/BRESP=OKAY, WACK=1 → complete"]
+        [0,1,"1. AW: WriteUnique","address + AWSNOOP=WriteUnique"],
+        [1,2,"2. AC snoop: MakeInvalid","broadcast to peers"],
+        [1,3,"2. AC snoop: MakeInvalid","broadcast to peers"],
+        [2,1,"3. CR: snoop response","invalidated / dirty on CD"],
+        [3,1,"3. CR: snoop response","invalidated / dirty on CD"],
+        [1,0,"4. B: write response","exclusive ownership obtained"],
+        [0,1,"5. W: write data","WDATA / WSTRB / WLAST"],
+        [1,4,"6. WriteNoSnoop","data to memory if needed"]
       ],
-      { title:"AMBA ACE — WriteUnique transaction", h:560, w:820 }
+      { title:"AMBA ACE — WriteUnique (multi-owner broadcast)", h:760, w:920 }
     );
   }
 
   function c910SVG(){
-    let s = `<svg width="760" height="360" viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img">`;
-    const box = (x,y,w,h,title,sub,fill) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${fill||'#f6f8fa'}" stroke="#d0d7de"/><text x="${x+w/2}" y="${y+20}" text-anchor="middle" font-size="12.5" font-weight="600" fill="#24292f" font-family="var(--sans)">${esc(title)}</text><text x="${x+w/2}" y="${y+38}" text-anchor="middle" font-size="10" fill="#57606a" font-family="var(--mono)">${esc(sub)}</text>`;
-    const arrow = (x1,y1,x2,y2,label) => {
-      const mx=(x1+x2)/2, my=(y1+y2)/2;
-      let a = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#0969da" stroke-width="1.6"/>`;
-      if(x2!==x1||y2!==y1) a += `<polygon points="${x2},${y2} ${x2-(x2-x1?Math.sign(x2-x1)*8:0)},${y2-4} ${x2-(x2-x1?Math.sign(x2-x1)*8:0)},${y2+4}" fill="#0969da"/>`;
-      if(label) a += `<text x="${mx}" y="${my-6}" text-anchor="middle" font-size="9.5" fill="#0969da" font-family="var(--sans)">${esc(label)}</text>`;
-      return a;
+    const CORE="#e1f5fe", CB="#01579b", PIU="#fff9c4", PB="#b45309", CIU="#f3e5f5", IB="#6a1b9a";
+    const L2="#fff3e0", LB="#e65100", BUS="#e8f5e9", BB="#1b5e20";
+    let s = `<svg width="940" height="620" viewBox="0 0 940 620" xmlns="http://www.w3.org/2000/svg" role="img">`;
+    // cluster container
+    s += `<rect x="18" y="16" width="904" height="252" rx="10" fill="none" stroke="${CB}" stroke-dasharray="6 4" stroke-width="1.4"/>`;
+    s += `<text x="34" y="40" font-size="12.5" font-weight="700" fill="${CB}" font-family="var(--sans)">C910 cluster · multi-core</text>`;
+    const box = (x,y,w,h,title,lines,fill,border) => {
+      let t = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="7" fill="${fill}" stroke="${border}" stroke-width="1.4"/>`;
+      t += `<text x="${x+w/2}" y="${y+20}" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1f2933" font-family="var(--sans)">${title}</text>`;
+      (lines||[]).forEach((ln,k)=> t += `<text x="${x+w/2}" y="${y+38+k*13}" text-anchor="middle" font-size="9.5" fill="#4b5563" font-family="var(--mono)">${ln}</text>`);
+      return t;
     };
-    s += box(60,20,240,52,"Core 0 · ct_top x0","ct_core → ct_biu_top (ACE-style)");
-    s += box(460,20,240,52,"Core 1 · ct_top x1","ct_core → ct_biu_top (ACE-style)");
-    s += box(180,140,400,64,"CIU · ct_ciu_top","Coherence Interconnect Unit (snoop buffer)");
-    s += box(180,250,400,60,"Shared L2 · ct_l2c_top","1MB 16-way 2 sub-banks (inclusive)");
-    s += box(500,330,220,24,"External AXI4-128 master","ct_ebiu_* (no snoop)");
-    s += arrow(180,72,300,140,"ARSNOOP/AWSNOOP · AC/CR/CD");
-    s += arrow(580,72,500,140,"ARSNOOP/AWSNOOP · AC/CR/CD");
-    s += arrow(380,204,380,250,"");
-    s += arrow(380,310,610,342,"WriteNoSnoop → AXI4");
-    s += `<text x="60" y="110" font-size="9.5" fill="#57606a" font-family="var(--mono)">internal ACE-style / MOESI</text>`;
-    s += `</svg>`;
-    return s;
-  }
-
-  function channelsSVG(){
-    const N = "#0969da", SN = "#8250df";
-    let s = `<svg width="760" height="360" viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img">`;
-    s += `<defs>
-      <marker id="cn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${N}"/></marker>
-      <marker id="cs" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${SN}"/></marker>
-    </defs>`;
-    const box = (x,y,w,h,title,sub) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="#f6f8fa" stroke="#d0d7de"/><text x="${x+w/2}" y="${y+h/2-2}" text-anchor="middle" font-size="13" font-weight="600" fill="#24292f" font-family="var(--sans)">${title}</text><text x="${x+w/2}" y="${y+h/2+15}" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--mono)">${sub}</text>`;
-    const arrow = (x1,y1,x2,y2,label,c,marker) => {
-      const mx=(x1+x2)/2, my=(y1+y2)/2;
-      s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="1.6" marker-end="url(#${marker})"/>`;
-      s += `<text x="${mx}" y="${my-4}" text-anchor="middle" font-size="10" fill="${c}" font-family="var(--mono)">${label}</text>`;
-    };
-    // participants
-    s += box(20,20,150,320,"Requester","RN / cache");
-    s += box(300,60,170,240,"Interconnect","ICN");
-    s += box(600,120,140,120,"Memory","");
-    // master -> ICN
-    arrow(170,48,300,110,"AW",N,"cn");
-    arrow(170,78,300,132,"AR",N,"cn");
-    arrow(170,108,300,148,"W",N,"cn");
-    // snoop trio
-    arrow(300,168,170,138,"AC",SN,"cs");
-    arrow(170,168,300,186,"CR",SN,"cs");
-    arrow(170,198,300,204,"CD",SN,"cs");
-    // ICN -> master
-    arrow(300,222,170,228,"B",N,"cn");
-    arrow(300,246,170,258,"R",N,"cn");
-    // downstream to memory
-    arrow(470,160,600,168,"AW/W",N,"cn");
-    arrow(600,192,470,192,"B",N,"cn");
-    arrow(470,224,600,216,"AR",N,"cn");
-    arrow(600,240,470,232,"R",N,"cn");
-    s += `<line x1="500" y1="34" x2="530" y2="34" stroke="#0969da" stroke-width="2"/><text x="438" y="38" text-anchor="end" font-size="9.5" fill="#0969da" font-family="var(--sans)">AXI read/write</text>`;
-    s += `<line x1="540" y1="34" x2="570" y2="34" stroke="#8250df" stroke-width="2"/><text x="576" y="38" font-size="9.5" fill="#8250df" font-family="var(--sans)">snoop</text>`;
-    s += `</svg>`;
-    return s;
-  }
-
-  function statesSVG(){
-    // classic ACE cache-line state diagram (I / UC / UD / SC / SD)
-    let s = `<svg width="760" height="360" viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img">`;
-    s += `<defs><marker id="st" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0969da"/></marker></defs>`;
-    const box = (x,y,w,h,n,f,fill) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${fill}" stroke="#d0d7de"/><text x="${x+w/2}" y="${y+h/2+1}" text-anchor="middle" font-size="14" font-weight="700" fill="#24292f" font-family="var(--mono)">${n}</text><text x="${x+w/2}" y="${y+h/2+16}" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--sans)">${f}</text>`;
-    const arrow = (x1,y1,x2,y2,label,lx,ly) => {
-      s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#0969da" stroke-width="1.5" marker-end="url(#st)"/>`;
-      s += `<text x="${lx}" y="${ly}" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--mono)">${label}</text>`;
-    };
-    // boxes
-    s += box(40,40,130,56,"UC","Unique Clean","#eef6ff");
-    s += box(315,40,130,56,"UD","Unique Dirty","#fff3d6");
-    s += box(590,40,130,56,"SD","Shared Dirty","#fff3d6");
-    s += box(40,300,130,56,"SC","Shared Clean","#eef6ff");
-    s += box(590,300,130,56,"I","Invalid","#ffffff");
-    // transitions
-    arrow(170,68,315,68,"write",242,60);
-    arrow(445,68,590,68,"ReadShared snoop",517,60);
-    arrow(655,96,655,300,"MakeInvalid",685,200);
-    arrow(590,328,170,328,"ReadShared / ReadClean",380,318);
-    arrow(105,300,105,96,"MakeUnique / CleanUnique",58,200);
-    arrow(545,300,190,96,"ReadUnique / ReadOnce",330,190);
-    arrow(380,96,545,300,"WriteBack",500,195);
-    arrow(590,96,145,300,"WriteClean",330,250);
-    s += `<text x="380" y="356" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--sans)">evict / snoop invalidate return the line to I</text>`;
+    const arrow = (x1,y1,x2,y2,label,lx,ly) => { s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#57606a" stroke-width="1.4" marker-end="url(#ca)"/><text x="${lx}" y="${ly}" text-anchor="middle" font-size="9" fill="#57606a" font-family="var(--mono)">${label}</text>`; };
+    s += `<defs><marker id="ca" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#57606a"/></marker></defs>`;
+    // cores
+    const coreY=46, coreH=108;
+    s += box(60,coreY,250,coreH,"Core 0",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
+    s += box(330,coreY,250,coreH,"Core 1",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
+    s += box(600,coreY,280,coreH,"Core N",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
+    // PIU
+    const piuY=176, piuH=52;
+    s += box(60,piuY,250,piuH,"PIU 0",["processor interface unit"],PIU,PB);
+    s += box(330,piuY,250,piuH,"PIU 1",["processor interface unit"],PIU,PB);
+    s += box(600,piuY,280,piuH,"PIU N",["processor interface unit"],PIU,PB);
+    // row 2: CIU / L2 / ACE bus
+    const r2Y=300;
+    s += box(60,r2Y,250,84,"CIU",["coherence interface unit","arbitrate / forward snoop"],CIU,IB);
+    s += box(340,r2Y,220,84,"L2 cache",["shared 1 MB · inclusive"],L2,LB);
+    s += box(600,r2Y,280,84,"ACE bus",["on-chip interconnect · snoop ch"],BUS,BB);
+    // row 3: memory / other
+    const r3Y=430;
+    s += box(340,r3Y,220,70,"Memory",["DDR / I/O"],BUS,BB);
+    s += box(600,r3Y,280,70,"Other ACE",["accelerator / other cluster"],BUS,BB);
+    // arrows (representative, labeled)
+    arrow(185,coreY+coreH,185,piuY,"coherent",185,coreY+coreH+11);
+    arrow(455,coreY+coreH,455,piuY,"",455,coreY+coreH+11);
+    arrow(740,coreY+coreH,740,piuY,"",740,coreY+coreH+11);
+    arrow(185,piuY+piuH,185,r2Y,"PIU → CIU",300,r2Y-6);
+    arrow(455,piuY+piuH,320,r2Y,"",330,r2Y-6);
+    arrow(740,piuY+piuH,330,r2Y,"",330,r2Y+10);
+    arrow(310,r2Y+42,340,r2Y+42,"",325,r2Y+34);
+    arrow(500,r2Y+84,600,r2Y+84,"",550,r2Y+78);
+    arrow(740,r2Y+84,740,r3Y+70,"",740,r2Y+98);
+    arrow(600,r2Y+84,480,r3Y+70,"",530,r2Y+100);
+    arrow(60,r2Y+42,60,20,"snoop in / out",150,14);
     s += `</svg>`;
     return s;
   }
@@ -258,29 +218,29 @@
   <div class="card">
     <h3>ReadUnique</h3>
     <div class="diagram">${seqSVG(
-      ["RN","ICN","Peer","MEM"],
+      ["CPU 0","Interconnect","CPU 1","Memory"],
       [
         [0,1,"AR: ReadUnique","ARSNOOP=ReadUnique"],
         [1,2,"Snoop: MakeInvalid","ACSNOOP=MakeInvalid"],
         [2,1,"Snoop resp","CRRESP (CD if dirty)"],
-        [1,0,"R: data + RACK","RACK=1 → RN owns Unique"]
+        [1,0,"R: data + RACK","RACK=1 → CPU 0 owns Unique"]
       ],
       { title:"ReadUnique", h:300, w:820 }
     )}</div>
     <h3>ReadShared</h3>
     <div class="diagram">${seqSVG(
-      ["RN","ICN","Peer","MEM"],
+      ["CPU 0","Interconnect","CPU 1","Memory"],
       [
         [0,1,"AR: ReadShared","ARSNOOP=ReadShared"],
         [1,2,"Snoop: ReadClean","ACSNOOP=ReadClean"],
         [2,1,"Snoop resp","CRRESP (CD if dirty)"],
-        [1,0,"R: data","RACK → RN keeps Shared"]
+        [1,0,"R: data","RACK → CPU 0 keeps Shared"]
       ],
       { title:"ReadShared", h:300, w:820 }
     )}</div>
     <h3>WriteBack / WriteClean</h3>
     <div class="diagram">${seqSVG(
-      ["RN (cache)","ICN","MEM",""],
+      ["CPU 0 (L1)","Interconnect","Memory",""],
       [
         [0,1,"AW: WriteBack/WriteClean","AWSNOOP"],
         [0,1,"W: data","WLAST"],
@@ -315,7 +275,7 @@
       <tr><td>Completion</td><td><code>B + WACK</code></td><td><code>Comp</code></td></tr>
     </table>
     <div class="diagram">${seqSVG(
-      ["RN","HN (Home)","SN","Peer RN"],
+      ["CPU 0","Home · L2","Memory","CPU 1 (peer)"],
       [
         [0,1,"WriteUniquePtl","address + control"],
         [1,0,"DBIDResp","buffer ID granted"],
@@ -358,14 +318,30 @@
     <p><b>Coherence is enclosed within the CIU</b> — above it is ACE-style snooping, below it non-coherent AXI4.</p>
   </div>
 
-  <h2>3. Key RTL files</h2>
+  <h2>3. Key RTL files, by layer</h2>
   <div class="card">
     <p>Repository root <code>C910_RTL_FACTORY/gen_rtl/</code>:</p>
+    <h3>3.1 Core (IFU / LSU / BIU)</h3>
     <ul>
-      <li><b>BIU</b>: <code>biu/rtl/ct_biu_top.v</code> (<code>_arsnoop[3:0]/_awsnoop[2:0]/_awunique/_ardomain[1:0]/_awdomain[1:0]</code>), <code>ct_biu_snoop_channel.v</code>, <code>ct_biu_read_channel.v</code>, <code>ct_biu_write_channel.v</code>, <code>ct_biu_req_arbiter.v</code>.</li>
-      <li><b>CIU</b>: <code>ciu/rtl/ct_ciu_top.v</code>, <code>ct_ciu_snb.v/ct_ciu_snb_arb.v/ct_ciu_snb_sab.v</code>, <code>ct_ciu_l2cif.v</code>, <code>ct_ciu_ncq.v/ct_ciu_vb.v</code>, <code>ct_ebiu_*.v</code> (incl. <code>ct_ebiu_snoop_channel_dummy.v</code>).</li>
-      <li><b>L2</b>: <code>l2c/rtl/ct_l2c_top.v</code>, <code>ct_l2c_sub_bank.v</code>, <code>ct_l2c_icc.v</code>, <code>ct_l2c_tag.v/ct_l2c_data.v/ct_l2c_wb.v/ct_l2c_prefetch.v</code>.</li>
-      <li><b>L1 snoop</b>: <code>lsu/rtl/ct_lsu_snoop_snq.v(+entry)</code>, <code>ct_lsu_snoop_ctcq.v(+entry)</code>, <code>ct_lsu_snoop_req_arbiter.v</code>, <code>ct_lsu_snoop_resp.v</code>, <code>ct_lsu_icc.v</code>, <code>ct_lsu_wmb.v</code>, <code>ct_lsu_bus_arb.v</code>.</li>
+      <li><b>IFU (+I-Cache)</b>: <code>ifu/rtl/ct_ifu_top.v</code>, <code>ct_ifu_cache_top.v</code>.</li>
+      <li><b>LSU (+D-Cache)</b>: <code>lsu/rtl/ct_lsu_top.v</code>, <code>ct_lsu_dcache_top.v</code>; <b>L1 snoop side</b>: <code>ct_lsu_snoop_snq.v(+entry)</code>, <code>ct_lsu_snoop_ctcq.v(+entry)</code>, <code>ct_lsu_snoop_req_arbiter.v</code>, <code>ct_lsu_snoop_resp.v</code>, <code>ct_lsu_icc.v</code>, <code>ct_lsu_wmb.v</code>.</li>
+      <li><b>BIU (ACE master)</b>: <code>biu/rtl/ct_biu_top.v</code> (<code>_arsnoop[3:0]/_awsnoop[2:0]/_awunique/_ardomain[1:0]/_awdomain[1:0]</code>), <code>ct_biu_snoop_channel.v</code>, <code>ct_biu_read_channel.v</code>, <code>ct_biu_write_channel.v</code>, <code>ct_biu_req_arbiter.v</code>.</li>
+    </ul>
+    <h3>3.2 Per-core coherence interface (the "PIU" layer)</h3>
+    <ul>
+      <li>In openC910 this role is fulfilled by the core <b>BIU</b> plus the LSU snoop/bus-arbiter: <code>ct_biu_req_arbiter.v</code>, <code>ct_lsu_bus_arb.v</code>, <code>ct_lsu_snoop_req_arbiter.v</code> — the per-core unit that arbitrates coherent vs. non-coherent access before the CIU.</li>
+    </ul>
+    <h3>3.3 CIU</h3>
+    <ul>
+      <li><code>ciu/rtl/ct_ciu_top.v</code>, <code>ct_ciu_snb.v/ct_ciu_snb_arb.v/ct_ciu_snb_sab.v</code> (snoop buffers), <code>ct_ciu_l2cif.v</code>, <code>ct_ciu_ncq.v/ct_ciu_vb.v</code>.</li>
+    </ul>
+    <h3>3.4 L2</h3>
+    <ul>
+      <li><code>l2c/rtl/ct_l2c_top.v</code>, <code>ct_l2c_sub_bank.v</code>, <code>ct_l2c_icc.v</code>, <code>ct_l2c_tag.v/ct_l2c_data.v/ct_l2c_wb.v/ct_l2c_prefetch.v</code>.</li>
+    </ul>
+    <h3>3.5 ACE bus / external</h3>
+    <ul>
+      <li><code>ciu/rtl/ct_ebiu_top.v</code> + <code>ct_ebiu_read_channel.v</code>, <code>ct_ebiu_write_channel.v</code>, <code>ct_ebiu_snoop_channel_dummy.v</code> (dummy snoop — the external path carries no snoop).</li>
     </ul>
   </div>
 
