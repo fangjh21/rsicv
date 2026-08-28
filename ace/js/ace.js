@@ -69,39 +69,40 @@
   }
 
   function channelsSVG(){
-    // 8 ACE channels between a cache master and the interconnect (+ downstream to memory)
     const N = "#0969da", SN = "#8250df";
     let s = `<svg width="760" height="360" viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img">`;
     s += `<defs>
       <marker id="cn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${N}"/></marker>
       <marker id="cs" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${SN}"/></marker>
     </defs>`;
-    const box = (x,y,w,h,t) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="#f6f8fa" stroke="#d0d7de"/><text x="${x+w/2}" y="${y+h/2+4}" text-anchor="middle" font-size="13" font-weight="600" fill="#24292f" font-family="var(--sans)">${t}</text>`;
-    s += box(20,20,150,320,"Requester<br/>(RN / cache)");
-    s += box(300,80,170,200,"Interconnect<br/>(ICN)");
-    s += box(600,120,140,120,"Memory");
+    const box = (x,y,w,h,title,sub) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="#f6f8fa" stroke="#d0d7de"/><text x="${x+w/2}" y="${y+h/2-2}" text-anchor="middle" font-size="13" font-weight="600" fill="#24292f" font-family="var(--sans)">${title}</text><text x="${x+w/2}" y="${y+h/2+15}" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--mono)">${sub}</text>`;
     const arrow = (x1,y1,x2,y2,label,c,marker) => {
-      const mx=(x1+x2)/2, my=(y1+y2)/2, dir = x2>x1?1:-1;
+      const mx=(x1+x2)/2, my=(y1+y2)/2;
       s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="1.6" marker-end="url(#${marker})"/>`;
       s += `<text x="${mx}" y="${my-4}" text-anchor="middle" font-size="10" fill="${c}" font-family="var(--mono)">${label}</text>`;
     };
-    // master -> ICN (write/read requests)
-    arrow(170,48,300,118,"AW",N,"cn");
-    arrow(170,80,300,132,"AR",N,"cn");
-    arrow(170,112,300,146,"W",N,"cn");
-    // snoop trio (ICN <-> master)
-    arrow(300,160,170,144,"AC",SN,"cs");
-    arrow(170,176,300,174,"CR",SN,"cs");
-    arrow(170,208,300,188,"CD",SN,"cs");
-    // ICN -> master (responses)
-    arrow(300,202,170,240,"B",N,"cn");
-    arrow(300,216,170,272,"R",N,"cn");
+    // participants
+    s += box(20,20,150,320,"Requester","RN / cache");
+    s += box(300,60,170,240,"Interconnect","ICN");
+    s += box(600,120,140,120,"Memory","");
+    // master -> ICN
+    arrow(170,48,300,110,"AW",N,"cn");
+    arrow(170,78,300,132,"AR",N,"cn");
+    arrow(170,108,300,148,"W",N,"cn");
+    // snoop trio
+    arrow(300,168,170,138,"AC",SN,"cs");
+    arrow(170,168,300,186,"CR",SN,"cs");
+    arrow(170,198,300,204,"CD",SN,"cs");
+    // ICN -> master
+    arrow(300,222,170,228,"B",N,"cn");
+    arrow(300,246,170,258,"R",N,"cn");
     // downstream to memory
-    arrow(470,150,600,160,"AW/W",N,"cn");
-    arrow(600,180,470,180,"B",N,"cn");
-    arrow(470,210,600,200,"AR",N,"cn");
-    arrow(600,220,470,220,"R",N,"cn");
-    s += `<text x="55" y="356" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--sans)">blue = AXI read/write channels · purple = ACE snoop channels</text>`;
+    arrow(470,160,600,168,"AW/W",N,"cn");
+    arrow(600,192,470,192,"B",N,"cn");
+    arrow(470,224,600,216,"AR",N,"cn");
+    arrow(600,240,470,232,"R",N,"cn");
+    s += `<line x1="500" y1="34" x2="530" y2="34" stroke="#0969da" stroke-width="2"/><text x="438" y="38" text-anchor="end" font-size="9.5" fill="#0969da" font-family="var(--sans)">AXI read/write</text>`;
+    s += `<line x1="540" y1="34" x2="570" y2="34" stroke="#8250df" stroke-width="2"/><text x="576" y="38" font-size="9.5" fill="#8250df" font-family="var(--sans)">snoop</text>`;
     s += `</svg>`;
     return s;
   }
