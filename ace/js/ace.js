@@ -49,8 +49,9 @@
   function c910SVG(){
     const CORE="#e1f5fe", CB="#01579b", PIU="#fff9c4", PB="#b45309", CIU="#f3e5f5", IB="#6a1b9a";
     const L2="#fff3e0", LB="#e65100", BUS="#e8f5e9", BB="#1b5e20";
-    let s = `<svg width="940" height="560" viewBox="0 0 940 560" xmlns="http://www.w3.org/2000/svg" role="img">`;
-    s += `<defs><marker id="ca" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#57606a"/></marker></defs>`;
+    let s = `<svg width="940" height="600" viewBox="0 0 940 600" xmlns="http://www.w3.org/2000/svg" role="img">`;
+    s += `<defs><marker id="ca" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#57606a"/></marker>
+      <marker id="ca2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#57606a"/></marker></defs>`;
     const box = (x,y,w,h,title,lines,fill,border) => {
       let t = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="${fill}" stroke="${border}" stroke-width="1.4"/>`;
       t += `<text x="${x+w/2}" y="${y+21}" text-anchor="middle" font-size="13" font-weight="700" fill="#1f2933" font-family="var(--sans)">${title}</text>`;
@@ -58,32 +59,33 @@
       ls.forEach((ln,k)=> t += `<text x="${x+w/2}" y="${y+41+k*13}" text-anchor="middle" font-size="10" fill="#4b5563" font-family="var(--mono)">${ln}</text>`);
       return t;
     };
-    const ar = (x1,y1,x2,y2,label,lx,ly) => { const mx=lx||(x1+x2)/2,my=ly||(y1+y2)/2; s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#57606a" stroke-width="1.5" marker-end="url(#ca)"/>`; if(label) s += `<text x="${mx}" y="${my-5}" text-anchor="middle" font-size="10" fill="#57606a" font-family="var(--mono)" stroke="#ffffff" stroke-width="3" paint-order="stroke">${label}</text>`; };
+    const ar = (x1,y1,x2,y2,label,lx,ly,mk) => { const mx=lx||(x1+x2)/2,my=ly||(y1+y2)/2; s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#57606a" stroke-width="1.5" marker-end="url(#${mk||"ca"})"/>`; if(label) s += `<text x="${mx}" y="${my-5}" text-anchor="middle" font-size="10" fill="#57606a" font-family="var(--mono)" stroke="#ffffff" stroke-width="3" paint-order="stroke">${label}</text>`; };
     // cluster: cores + PIU + CIU(center) + L2
-    s += `<rect x="20" y="18" width="900" height="336" rx="12" fill="none" stroke="${CB}" stroke-dasharray="6 4" stroke-width="1.4"/>`;
+    s += `<rect x="20" y="18" width="900" height="328" rx="12" fill="none" stroke="${CB}" stroke-dasharray="6 4" stroke-width="1.4"/>`;
     s += `<text x="36" y="40" font-size="13" font-weight="700" fill="${CB}" font-family="var(--sans)">C910 cluster · multi-core</text>`;
-    s += box(50,46,250,80,"Core 0",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
-    s += box(340,46,250,80,"Core 1",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
-    s += box(630,46,250,80,"Core N",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
-    s += box(50,146,250,42,"PIU 0","processor interface unit",PIU,PB);
-    s += box(340,146,250,42,"PIU 1","processor interface unit",PIU,PB);
-    s += box(630,146,250,42,"PIU N","processor interface unit",PIU,PB);
-    s += box(340,228,260,86,"CIU",["coherence interface unit","arbitrate / forward snoop"],CIU,IB);
-    s += box(630,228,250,86,"L2 cache",["shared 1 MB · inclusive"],L2,LB);
-    ar(175,126,175,146,"coherent");
-    ar(465,126,465,146,"");
-    ar(755,126,755,146,"");
-    ar(175,188,360,228,"PIU → CIU");
-    ar(465,188,465,228,"");
-    ar(755,188,580,228,"");
-    ar(600,271,630,271,"CIU → L2");
-    // ACE bus below (centered), Memory/Other symmetric
-    ar(470,354,470,378,"to ACE bus");
-    s += box(330,378,280,84,"ACE bus",["on-chip interconnect · snoop"],BUS,BB);
-    s += box(180,500,260,52,"Memory",["DDR / I/O"],BUS,BB);
-    s += box(500,500,260,52,"Other ACE",["accelerator / other cluster"],BUS,BB);
-    ar(390,462,310,500,"to memory",350,486);
-    ar(550,462,630,500,"",590,486);
+    s += box(50,46,250,78,"Core 0",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
+    s += box(340,46,250,78,"Core 1",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
+    s += box(630,46,250,78,"Core N",["IFU · I-Cache","LSU · D-Cache","BIU · ACE master"],CORE,CB);
+    s += box(50,140,250,40,"PIU 0","processor interface unit",PIU,PB);
+    s += box(340,140,250,40,"PIU 1","processor interface unit",PIU,PB);
+    s += box(630,140,250,40,"PIU N","processor interface unit",PIU,PB);
+    s += box(340,214,260,86,"CIU",["coherence interface unit","arbitrate / forward snoop"],CIU,IB);
+    s += box(630,214,250,86,"L2 cache",["shared 1 MB · inclusive"],L2,LB);
+    ar(175,124,175,140,"coherent");
+    ar(465,124,465,140,"");
+    ar(755,124,755,140,"");
+    ar(175,180,360,214,"PIU → CIU");
+    ar(465,180,465,214,"");
+    ar(755,180,580,214,"");
+    ar(600,257,630,257,"CIU → L2");
+    // ACE bus (below, wider) + explicit interacting arrows
+    s += box(240,390,460,80,"ACE bus",["on-chip interconnect · snoop"],BUS,BB);
+    ar(340,346,340,390,"BIU ×N · non-cache / IO",250,376);
+    ar(520,346,520,390,"CIU · ACE slave / snoop",628,376);
+    s += box(180,510,260,50,"Memory",["DDR / I/O"],BUS,BB);
+    s += box(500,510,260,50,"Other ACE",["accelerator / other cluster"],BUS,BB);
+    ar(330,470,300,510,"to memory",300,494,"ca2");
+    ar(530,470,560,510,"",600,494);
     s += `</svg>`;
     return s;
   }
