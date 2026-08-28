@@ -19,7 +19,7 @@
       const dir = from < to ? 1 : -1;
       const x0 = from + dir*16, x1 = to - dir*16;
       s += `<line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="#0969da" stroke-width="1.6"/>`;
-      s += `<polygon points="${x1},${y} ${x1-dir*8},${y-4} ${x1-dir*8},${y+4}" fill="#0969da"/>`;
+      s += `<polygon points="${x1},${y} ${x1-dir*7},${y-3} ${x1-dir*7},${y+3}" fill="#0969da"/>`;
       const mid = (from+to)/2;
       const block = [m[2], m[3]].filter(Boolean).join("\n").split("\n");
       const oy = y - 8 - (block.length-1)*5.5;
@@ -50,7 +50,7 @@
     const CORE="#e1f5fe", CB="#01579b", PIU="#fff9c4", PB="#b45309", CIU="#f3e5f5", IB="#6a1b9a";
     const L2="#fff3e0", LB="#e65100", BUS="#e8f5e9", BB="#1b5e20";
     let s = `<svg width="940" height="640" viewBox="0 0 940 640" xmlns="http://www.w3.org/2000/svg" role="img">`;
-    s += `<defs><marker id="ca" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#57606a"/></marker></defs>`;
+    s += `<defs><marker id="ca" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#57606a"/></marker></defs>`;
     const box = (x,y,w,h,title,lines,fill,border) => {
       let t = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="${fill}" stroke="${border}" stroke-width="1.4"/>`;
       t += `<text x="${x+w/2}" y="${y+22}" text-anchor="middle" font-size="13" font-weight="700" fill="#1f2933" font-family="var(--sans)">${title}</text>`;
@@ -93,9 +93,9 @@
     const CPU="#e1f5fe", CPUB="#01579b", ICN="#f3e5f5", ICNB="#6a1b9a", MEM="#e8f5e9", MEMB="#1b5e20";
     let s = `<svg width="820" height="360" viewBox="0 0 820 360" xmlns="http://www.w3.org/2000/svg" role="img">`;
     s += `<defs>
-      <marker id="cn" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L11 6 L1 11 z" fill="${N}"/></marker>
-      <marker id="cs" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L11 6 L1 11 z" fill="${SN}"/></marker>
-      <marker id="cm" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L11 6 L1 11 z" fill="${N}"/></marker>
+      <marker id="cn" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="5.5" markerHeight="5.5" orient="auto"><path d="M1 1 L11 6 L1 11 z" fill="${N}"/></marker>
+      <marker id="cs" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="5.5" markerHeight="5.5" orient="auto"><path d="M1 1 L11 6 L1 11 z" fill="${SN}"/></marker>
+      <marker id="cm" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="5.5" markerHeight="5.5" orient="auto"><path d="M1 1 L11 6 L1 11 z" fill="${N}"/></marker>
     </defs>`;
     const box = (x,y,w,h,title,sub,fill,border) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="${fill}" stroke="${border}" stroke-width="1.6"/><text x="${x+w/2}" y="${y+h/2-3}" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933" font-family="var(--sans)">${title}</text><text x="${x+w/2}" y="${y+h/2+16}" text-anchor="middle" font-size="10.5" fill="#4b5563" font-family="var(--mono)">${sub}</text>`;
     const ar = (x1,x2,y,label,c,dir,mk) => { s+=`<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${c}" stroke-width="2.4" stroke-linecap="round" marker-end="url(#${mk})"/><text x="${(x1+x2)/2}" y="${y-7}" text-anchor="middle" font-size="11" fill="${c}" font-family="var(--mono)" stroke="#ffffff" stroke-width="3.5" paint-order="stroke">${label}</text>`; };
@@ -124,7 +124,7 @@
 
   function statesSVG(){
     let s = `<svg width="880" height="470" viewBox="0 0 880 470" xmlns="http://www.w3.org/2000/svg" role="img">`;
-    s += `<defs><marker id="st" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0969da"/></marker></defs>`;
+    s += `<defs><marker id="st" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0969da"/></marker></defs>`;
     const box = (x,y,n,f,fill) => `<rect x="${x}" y="${y}" width="160" height="70" rx="8" fill="${fill}" stroke="#d0d7de" stroke-width="1.4"/><text x="${x+80}" y="${y+30}" text-anchor="middle" font-size="16" font-weight="700" fill="#24292f" font-family="var(--mono)">${n}</text><text x="${x+80}" y="${y+50}" text-anchor="middle" font-size="10.5" fill="#57606a" font-family="var(--sans)">${f}</text>`;
     const line = (x1,y1,x2,y2) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#0969da" stroke-width="2" marker-end="url(#st)"/>`;
     const lab = (x,y,t,rot) => `<text x="${x}" y="${y}" text-anchor="middle" font-size="11.5" fill="#57606a" font-family="var(--mono)" stroke="#ffffff" stroke-width="3.5" paint-order="stroke"${rot?` transform="rotate(${rot} ${x} ${y})"`:""}>${t}</text>`;
