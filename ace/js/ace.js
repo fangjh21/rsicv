@@ -77,9 +77,6 @@
     <p>AMBA <b>ACE</b> (AXI Coherency Extensions) adds <b>three snoop channels</b> — <code>AC</code> (snoop address), <code>CR</code> (snoop response), <code>CD</code> (snoop data) — to the five AXI4 channels (<code>AW/W/B/AR/R</code>), adds coherent signals such as <code>AWSNOOP/ARSNOOP</code> on the address channels and <code>RACK/WACK</code> on the response channels, and thereby lets multiple cache-capable masters maintain cache coherence over shared memory.</p>
   </div>
 
-  <div class="note warn"><b>Note: <code>WriteUniquePtl / DBIDResp / SnpCleanInvalid / NCBWrData / CompDBIDResp</code> are AMBA <u>CHI</u> terms, not ACE.</b>
-  ACE is channel-based (AXI + snoop) and has no DBID allocation or Comp completion message; its exclusive write uses <code>AWSNOOP=WriteUnique</code> plus a <code>MakeInvalid</code> snoop on the AC channel. The CHI comparison is under <a href="#/protocol">Protocol</a>.</div>
-
   <h2>Why coherence is needed</h2>
   <div class="card">
     <p>Each core has private caches over one shared memory. The same address may be cached by several cores; a write by one core must become observable to the others, or they read stale data.</p>
