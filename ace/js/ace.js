@@ -78,7 +78,7 @@
   S.overview = () => `<h1>AMBA ACE 协议学习站</h1>
   <p class="lead">AXI Coherency Extensions（ACE）— 面向多核/多主机一致性系统的 AXI4 扩展，本页按「原理 → 协议 → 信号 → 访问分类 → 时序 → C910 实现 → 形式验证」递进。</p>
   <div class="card">
-    <h3>一句话说明</h3>
+    <h3>概述</h3>
     <p>AMBA <b>ACE</b> 在标准 AXI4 的 5 条通道（AW / W / B / AR / R）之上，增加了 <b>3 条监听通道</b>（<code>AC</code> 地址监听、<code>CR</code> 监听响应、<code>CD</code> 监听数据），并在 AW/AR 上增加 <code>AWSNOOP/ARSNOOP</code> 等一致性信号、在 R/B 上增加 <code>RACK/WACK</code>，使多个缓存型主机能在共享内存上维持缓存一致性。</p>
     <p>它服务于 <b>big.LITTLE / 多核簇</b> 这一类「带缓存的多个主设备共享同一内存」的 SoC 架构 —— 正是玄铁 C910 这类 RISC-V 多核处理器要接入的互连场景。</p>
   </div>
@@ -115,7 +115,7 @@
       <li><b>单写者（SW）</b>：有且仅有一个核持有可写的副本（且此刻没有其他读副本）；或</li>
       <li><b>多读者（MR）</b>：多个核持有只读副本，谁都不能写。</li>
     </ul>
-    <p>一切一致性协议（MESI/MOESI/ACE/CHI…）本质上都在<b>维护这个不变量</b>：写之前先「回收」所有其他副本（失效或回写脏数据），读之前先「确保」副本是最新的。</p>
+    <p>一切一致性协议（MESI/MOESI/ACE/CHI…）本质上都在<b>维护这个不变量</b>：写操作之前须「回收」所有其他副本（使其失效或回写脏数据），读操作之前须「确认」副本为最新。</p>
   </div>
 
   <h2>3. 缓存行状态模型</h2>
@@ -126,7 +126,7 @@
       <tr><td><code>I</code> (Invalid)</td><td>该行无效/不在缓存</td><td>—</td><td>读/写都要发起事务</td></tr>
       <tr><td><code>UC</code> (Unique Clean)</td><td>全系统唯一副本，且与内存一致</td><td>✅</td><td>写可静默升级为 UD（不需通知互连）</td></tr>
       <tr><td><code>UD</code> (Unique Dirty)</td><td>唯一副本，比内存新（脏）</td><td>✅</td><td>独占脏行，可静默写</td></tr>
-      <tr><td><code>SC</code> (Shared Clean)</td><td>多个副本，与内存一致</td><td>❌</td><td>要写必须先升级为 Unique</td></tr>
+      <tr><td><code>SC</code> (Shared Clean)</td><td>多个副本，与内存一致</td><td>❌</td><td>写入前须先升级为 Unique</td></tr>
       <tr><td><code>SD</code> (Shared Dirty)</td><td>多个副本，其中一个持有脏数据</td><td>❌</td><td>写前需回写+失效其他副本</td></tr>
     </table>
     <p>直觉：<b>Unique = 独占</b>（可静默修改）；<b>Shared = 共享</b>（修改前需通知其他副本）；<b>Dirty = 比内存新</b>（回写内存时需交出脏数据）。</p>
@@ -148,10 +148,10 @@
     <p>ACE 还定义了两种屏障事务：<code>MemoryBarrier</code>（保证屏障前的事务在屏障后的观测上全局可见）与 <code>SyncBarrier</code>（所有参与者的同步点）；并通过 <code>AWDOMAIN/ARDOMAIN</code> 把系统划分成「一致性域」，只有同域内才需要维持一致 —— 这也是 C910 这类多核簇接 SoC 时用到的边界概念。</p>
   </div>
 
-  <div class="note"><b>下一步</b>：状态模型 + 事务类型如何联动，见 <a href="#/transactions">访问分类</a> 与 <a href="#/timing">时序图</a>。</div>`;
+  <div class="note"><b>相关内容</b>：状态模型与事务类型的联动，见 <a href="#/transactions">访问分类</a> 与 <a href="#/timing">时序图</a>。</div>`;
 
   S.protocol = () => `<h1>协议内容</h1>
-  <p class="lead">ACE 在 AXI4 之上叠加一致性能力。先理解「通道」这个基本单元和 VALID/READY 握手，再理解一个事务如何跨多条通道展开。</p>
+  <p class="lead">ACE 在 AXI4 之上叠加一致性能力。首先理解「通道」这一基本单元与 VALID/READY 握手，进而理解事务如何跨多条通道展开。</p>
 
   <h2>1. 通道（Channel）总览</h2>
   <div class="card">
@@ -167,13 +167,13 @@
       <tr><td><code>CR</code> 监听响应</td><td>缓存主 → 互连</td><td>监听结果（<code>CRRESP</code>）</td></tr>
       <tr><td><code>CD</code> 监听数据</td><td>缓存主 → 互连</td><td>监听中交出的脏数据（<code>CDDATA/CDLAST</code>）</td></tr>
     </table>
-    <p>记忆法：<b>AW/W/B</b> 是「写三件套」，<b>AR/R</b> 是「读两件套」，<b>AC/CR/CD</b> 是「监听三件套」—— 监听从互连<b>进</b>主设备（AC），主设备<b>回</b>结果（CR）和脏数据（CD）。</p>
+    <p>助记：<b>AW/W/B</b> 构成写通路，<b>AR/R</b> 构成读通路，<b>AC/CR/CD</b> 构成监听通路 —— 监听请求由互连经 AC 发往主设备，主设备经 CR 返回结果、经 CD 返回脏数据。</p>
   </div>
 
   <h2>2. VALID / READY 握手</h2>
   <div class="card">
     <p>每条通道用 <code>VALID</code>（发送方有数据）与 <code>READY</code>（接收方能收）握手。数据在 <b>VALID 与 READY 同时为高的时钟沿</b>传输，双方可各自等待，不阻塞。</p>
-    <p>两条铁律：</p>
+    <p>两条基本规则：</p>
     <ul>
       <li>发送方<b>不得</b>在 VALID 拉高后等待 READY 时改变数据（保持稳定直到握手完成）。</li>
       <li>VALD 一旦拉高<b>必须保持到握手完成</b>；READY 可以随时拉高/拉低（甚至可以不等 VALID）。</li>
@@ -202,7 +202,7 @@
   S.signals = () => `<h1>信号解释</h1>
   <p class="lead">逐通道、逐信号。ACE = AXI4 基础信号 + 一致性增强信号。前缀 <code>AW/W/B/AR/R/AC/CR/CD</code> 对应通道，<code>xVALID/xREADY</code> 为各通道握手。（本表按 <b>AMBA 4 ACE</b>，AMBA 5 的差异见<a href="#/transactions">访问分类</a>末尾说明。）</p>
 
-  <h2>1. AXI4 基础通道（先记住这些）</h2>
+  <h2>1. AXI4 基础通道</h2>
   <div class="card">
     <table>
       <tr><th>通道</th><th>关键信号</th><th>含义</th></tr>
@@ -219,7 +219,7 @@
     <table>
       <tr><th>信号</th><th>通道</th><th>位宽</th><th>含义</th></tr>
       <tr><td><code>AWSNOOP</code></td><td>AW</td><td>3b</td><td>本次写的一致性类型（WriteNoSnoop/WriteUnique/WriteLineUnique/WriteBack/WriteClean）</td></tr>
-      <tr><td><code>AWUNIQUE</code></td><td>AW</td><td>1b</td><td>对 WriteLineUnique：=1 表示本端已是唯一副本、互连可省监听</td></tr>
+      <tr><td><code>AWUNIQUE</code></td><td>AW</td><td>1b</td><td>对 WriteLineUnique：=1 表示本端已是唯一副本，互连可免于监听</td></tr>
       <tr><td><code>AWDOMAIN</code></td><td>AW</td><td>2b</td><td>写所属一致性域（0b00 Non-shareable / 0b01 Inner / 0b10 Outer / 0b11 System）</td></tr>
       <tr><td><code>ARSNOOP</code></td><td>AR</td><td>4b</td><td>本次读的一致性类型（ReadNoSnoop/ReadOnce…/ReadUnique/CleanInvalid/MakeInvalid/CleanShared/MakeUnique 等，见<a href="#/transactions">访问分类</a>）</td></tr>
       <tr><td><code>ARDOMAIN</code></td><td>AR</td><td>2b</td><td>读所属一致性域</td></tr>
@@ -252,7 +252,7 @@
     <p><b>低功耗 C-channel（ACE-Lite）</b>：<code>CACTIVE</code>（主设备有无未完成事务）、<code>CSYSREQ</code>（系统请求进入/退出低功耗）、<code>CSYSACK</code>（主设备确认）。C910 的 <code>biu_pad_cactive / pad_biu_csysreq / biu_pad_csysack</code> 即此通道 —— 它是电源门控握手，不是一致性。</p>
   </div>
 
-  <div class="note"><b>记忆</b>：一致性读写看 <code>AWSNOOP/ARSNOOP</code>（事务「想要什么一致性结果」）；互连据此在 <code>AC</code> 发监听、缓存经 <code>CR/CD</code> 回结果；<code>RACK/WACK</code> 是「资源可释放」的独立完成握手。</div>`;
+  <div class="note"><b>小结</b>：一致性读写看 <code>AWSNOOP/ARSNOOP</code>（事务「想要什么一致性结果」）；互连据此在 <code>AC</code> 发监听、缓存经 <code>CR/CD</code> 回结果；<code>RACK/WACK</code> 是「资源可释放」的独立完成握手。</div>`;
 
   S.transactions = () => `<h1>访问分类</h1>
   <p class="lead">ACE 的事务按「<b>谁发起、要什么一致性结果</b>」分三类：一致性读（ARSNOOP）、一致性写（AWSNOOP）、监听事务（ACSNOOP），外加两类屏障。<b>以下编码为 AMBA 4 ACE</b>（AMBA 5 的改动见末尾说明）。</p>
@@ -270,11 +270,11 @@
       <tr><td>0b1010</td><td><code>CleanShared</code></td><td>缓存维护（CMO）：清理所有副本，无数据</td></tr>
       <tr><td>0b1011</td><td><code>MakeUnique</code></td><td>使其他副本失效、本端独占（无数据返回）</td></tr>
       <tr><td>0b1100</td><td><code>ReadNotSharedDirty</code></td><td>行填充，请求方不得以 Shared-Dirty 结束</td></tr>
-      <tr><td>0b1101</td><td><code>ReadUnique</code></td><td>行填充并分配为 <b>Unique</b>（写前奏）</td></tr>
+      <tr><td>0b1101</td><td><code>ReadUnique</code></td><td>行填充并分配为 <b>Unique</b>（为后续写操作做准备）</td></tr>
       <tr><td>0b1110</td><td><code>CleanInvalid</code></td><td>CMO：清理 + 失效所有副本</td></tr>
       <tr><td>0b1111</td><td><code>MakeInvalid</code></td><td>CMO：失效所有副本（脏数据无需回写）</td></tr>
     </table>
-    <p>规律：<b>00xx = ReadOnce 族（可省监听）→ 10xx = Read/Clean/Make 族（要监听）→ 11xx = Unique/Invalid 族（要独占/要失效）</b>。</p>
+    <p>规律：<b>00xx = ReadOnce 族（可免于监听）→ 10xx = Read/Clean/Make 族（要监听）→ 11xx = Unique/Invalid 族（要独占/要失效）</b>。</p>
   </div>
 
   <h2>2. 一致性写（AWSNOOP，3 位）</h2>
@@ -282,8 +282,8 @@
     <table>
       <tr><th>值</th><th>事务</th><th>含义</th></tr>
       <tr><td>0b000</td><td><code>WriteNoSnoop</code></td><td>非一致写（写内存）</td></tr>
-      <tr><td>0b001</td><td><code>WriteUnique</code></td><td>对<b>不持有</b>的 Shareable 行做一致写，<b>写穿/不分配</b>；互连监听使别处失效并合并脏数据（本站 <a href="#/writeunique">WriteUnique</a> 主角）</td></tr>
-      <tr><td>0b010</td><td><code>WriteLineUnique</code></td><td><b>整行</b>一致写，把该行分配为 <b>Unique</b>；<code>AWUNIQUE=1</code> 表示本端已唯一可省监听</td></tr>
+      <tr><td>0b001</td><td><code>WriteUnique</code></td><td>对<b>不持有</b>的 Shareable 行做一致写，<b>写穿/不分配</b>；互连监听使其他副本失效并合并脏数据（本站 <a href="#/writeunique">WriteUnique</a> 重点介绍）</td></tr>
+      <tr><td>0b010</td><td><code>WriteLineUnique</code></td><td><b>整行</b>一致写，把该行分配为 <b>Unique</b>；<code>AWUNIQUE=1</code> 表示本端已是唯一副本，可免于监听</td></tr>
       <tr><td>0b011</td><td><code>WriteBack</code></td><td>淘汰<b>脏</b> Shareable 行，回写内存</td></tr>
       <tr><td>0b100</td><td><code>WriteClean</code></td><td>清理<b>干净</b> Shareable 行（无数据出）</td></tr>
     </table>
@@ -300,7 +300,7 @@
       <tr><td>0b1000</td><td><code>ReadClean</code></td><td>交出数据，行变 Clean</td></tr>
       <tr><td>0b1001</td><td><code>ReadShared</code></td><td>交出数据，行变 Shared</td></tr>
       <tr><td>0b1010</td><td><code>CleanShared</code></td><td>交出数据，保持 Shared</td></tr>
-      <tr><td>0b1011</td><td><code>MakeUnique</code></td><td>失效，脏则交数据，使请求方 Unique</td></tr>
+      <tr><td>0b1011</td><td><code>MakeUnique</code></td><td>失效该行；若为脏，经 CD 返回数据，使请求方取得 Unique</td></tr>
       <tr><td>0b1100</td><td><code>ReadNotSharedDirty</code></td><td>交出数据但不交给请求方共享</td></tr>
       <tr><td>0b1101</td><td><code>ReadUnique</code></td><td>交出数据，失效，使请求方 Unique</td></tr>
       <tr><td>0b1110</td><td><code>CleanInvalid</code></td><td>失效该行（干净，无需数据）</td></tr>
@@ -327,9 +327,9 @@
   <div class="note"><b>依据</b>：编码表参照 ARM IHI 0022（AMBA AXI/ACE 规范）与 ARM DynamIQ/Cortex-A35 TRM 的信号位宽；ACSNoop 单独枚举与 CRRESP 位序在规范 Snoop 章节，建议引用前再核对一遍。</div>`;
 
   S.timing = () => `<h1>事务时序图</h1>
-  <p class="lead">每个事务都是「请求 →（可能监听）→ 数据 → 响应/完成」的流程。下面按访问类型给出时序图，参与者为：请求者 RN、互连 ICN、对端缓存 Peer、内存 MEM。</p>
+  <p class="lead">每个事务都是「请求 →（可能监听）→ 数据 → 响应/完成」的流程。以下按访问类型给出时序图，参与者为：请求者 RN、互连 ICN、对端缓存 Peer、内存 MEM。</p>
 
-  <h2>1. ReadUnique（读并取得独占，读改写前奏）</h2>
+  <h2>1. ReadUnique（读取并取得独占权，为读-改-写做准备）</h2>
   <div class="card">
     <div class="diagram">${seqSVG(
       ["RN","ICN","Peer","MEM"],
@@ -363,7 +363,7 @@
     <p>详细步骤见 <a href="#/writeunique">WriteUnique 事务流程</a>。</p>
   </div>
 
-  <h2>4. WriteBack / WriteClean（自己交数据，无监听）</h2>
+  <h2>4. WriteBack / WriteClean（回写数据，无监听）</h2>
   <div class="card">
     <div class="diagram">${seqSVG(
       ["RN (cache)","ICN","MEM",""],
@@ -436,7 +436,7 @@
       ],
       { title:"AMBA CHI — WriteUniquePtl（可视化对照）", h:560, w:820 }
     )}</div>
-    <p>对照看出两条主线：<b>ACE 用通道握手 + 监听（AC/CR/CD），CHI 用报文 + 分离响应（DBIDResp/Comp）</b>；「先失效别处副本再独占写」这个语义两者完全一致。</p>
+    <p>对照可见两条主线：<b>ACE 用通道握手 + 监听（AC/CR/CD），CHI 用报文 + 分离响应（DBIDResp/Comp）</b>；「先使其他副本失效、再独占写入」这一语义在两者中完全一致。</p>
   </div>`;
 
   S.c910 = () => `<h1>C910 具体实现与 RTL 解读</h1>
@@ -466,13 +466,13 @@
       <tr><td>共享 L2</td><td><code>l2c/rtl/ct_l2c_top.v</code> + <code>ct_l2c_icc.v</code>（cache-coherence control）+ <code>ct_l2c_sub_bank.v</code></td><td>MOESI 目录/状态、脏行回写、inclusive 维护</td></tr>
       <tr><td>对外</td><td><code>ciu/rtl/ct_ebiu_*.v</code>（external BIU，含 <code>ct_ebiu_snoop_channel_dummy.v</code>）</td><td>把内部事务转换成普通 AXI4-128；dummy snoop 通道证明「对外无 snoop」</td></tr>
     </table>
-    <p>一句话理解：<b>一致性被封闭在 CIU 内部</b>，CIU 之上是 ACE 风格监听，CIU 之下（L2 出口）转成非一致 AXI4。这正是 ACE「把一致性域圈起来」的教科书式落点。</p>
+    <p>概括而言：<b>一致性被封装在 CIU 内部</b>——CIU 之上为 ACE 风格监听，CIU 之下（L2 出口）转为非一致 AXI4。这正是 ACE 将一致性域封装于互连内部的典型实现方式。</p>
   </div>
 
   <h2>3. RTL 走读：关键文件与要点</h2>
   <div class="card">
-    <p>仓库根为 <code>C910_RTL_FACTORY/gen_rtl/</code>，下面是走读主线（模块名均已在仓库中核实存在）：</p>
-    <h3>3.1 核总线接口 BIU（ACE 信号在这里出现）</h3>
+    <p>仓库根为 <code>C910_RTL_FACTORY/gen_rtl/</code>，以下为走读主线（模块名均已在仓库中核实存在）：</p>
+    <h3>3.1 核总线接口 BIU（ACE 信号所在层）</h3>
     <ul>
       <li><code>biu/rtl/ct_biu_top.v</code>：核的总线出口，<code>_arsnoop[3:0] / _awsnoop[2:0] / _awunique / _ardomain[1:0] / _awdomain[1:0]</code> —— 位宽与 AMBA ACE 完全一致（ARSNOOP 4b、AWSNOOP 3b、AWUNIQUE 1b、DOMAIN 2b）。</li>
       <li><code>ct_biu_snoop_channel.v</code>：<code>acaddr/acprot/acsnoop/acvalid/acready</code> 监听地址通道。</li>
@@ -532,7 +532,7 @@
     <h3>方法（核心）</h3>
     <p>把非形式化的 AMBA ACE 文本，手工翻译成 <b>LNT</b>（CADP 工具链的过程代数语言），再用 CADP 的 <b>Evaluator / MCL</b>（模态 μ 演算）做模型检查。把协议建模成「主设备 + 单一监听/一致性点」在 AXI + AC + CR + DVM 通道上通信的<b>并发 agent</b>，每个通道刻画消息类型与排序保证。</p>
     <h3>关键洞察</h3>
-    <p>① 把 ACE <b>按命名通道分解 + 一个一致性点</b>，排序约束才能被精确陈述；② 构造<b>与配置无关、按 agent 数参数化</b>的参考模型，直接把 ACE 的「公理」编码进去 —— 这样同一模型对 1 核到 N 核拓扑通用。</p>
+    <p>① 把 ACE <b>按命名通道分解 + 一个一致性点</b>，排序约束才能被精确陈述；② 构造<b>与配置无关、按 agent 数参数化</b>的参考模型，将 ACE 的「公理」直接编码其中 —— 由此同一模型可适用于 1 核至 N 核的拓扑。</p>
     <h3>结果</h3>
     <p>模型检查揭示：按朴素读法，ACE 规范<b>并非自动无死锁</b>—— 某些看似允许的顺序会走到死锁态。贡献不是「ACE 有 bug」，而是<b>把隐含的全局排序/一致性点要求显式化、可检查化</b>。</p>
   </div>
@@ -567,7 +567,7 @@
   <div class="card">
     <table>
       <tr><th>方向</th><th>代表工作</th><th>要点</th></tr>
-      <tr><td>AMBA AXI/AHB 早期形式化</td><td>Roychoudhury &amp; Mitra，DATE 2003（AMBA 总线模型检查找 bug）</td><td>ACE 类总线形式验证的经典先例</td></tr>
+      <tr><td>AMBA AXI/AHB 早期形式化</td><td>Roychoudhury &amp; Mitra，DATE 2003（对 AMBA 总线进行模型检查并发现缺陷）</td><td>ACE 类总线形式验证的经典先例</td></tr>
       <tr><td>AMBA 在 HOL 里建模</td><td>Cambridge <a href="https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-602.html">UCAM-CL-TR-602</a>（2004）</td><td>定理证明路线</td></tr>
       <tr><td>现代相干后继</td><td><a href="https://arxiv.org/abs/2410.15908">Formalising CXL Cache Coherence</a>（ASPLOS 2025）</td><td>CXL.cachemem（源自 CHI）的规范形式化 + 模型检查</td></tr>
       <tr><td>RISC-V 生态</td><td>TileLink 一致性 Murphi 模型检查（ICCD 2023）</td><td>显式状态模型检查的现代范本</td></tr>
@@ -578,10 +578,10 @@
   <h2>方法论总结</h2>
   <div class="card">
     <ul>
-      <li><b>先形式化「规范」</b>：把 ACE 拆成命名通道 + 单一一致性点，用 LNT/CADP（或等价的进程代数）建立<b>参数化参考模型</b> —— 这是可复用、可扩展的核心。</li>
+      <li><b>首先形式化「规范」</b>：将 ACE 分解为命名通道与单一一致性点，用 LNT/CADP（或等价的进程代数）建立<b>参数化参考模型</b> —— 这是可复用、可扩展的核心。</li>
       <li><b>再拿模型查「实现」</b>：组合式验证 + 参考模型当 oracle，把精力放在「实现偏离模型」的点。</li>
       <li><b>死锁单独拆出来查</b>：用依赖环 + SAT/SMT 的自动化方法（ADVOCAT 思路），尤其要<b>连同底层 NoC 缓冲/顺序一起</b>建模，不能只看协议层。</li>
-      <li><b>snoop filter 的正确性</b>没有独立强学术论文 —— 它被并入「一致性点/AC 通道排序模型」，或交给工业断言 VIP；写材料时别去引不存在的「snoop filter 最佳论文」。</li>
+      <li><b>snoop filter 的正确性</b>没有独立强学术论文 —— 它被并入「一致性点/AC 通道排序模型」，或交给工业断言 VIP；撰写材料时不宜引用并不存在的「snoop filter 最佳论文」。</li>
     </ul>
   </div>
 
