@@ -11,11 +11,12 @@ a:hover{text-decoration:underline}
 
 .sidebar{width:236px;flex:none;background:var(--bg);border-right:1px solid var(--line);position:sticky;top:0;height:100vh;display:flex;flex-direction:column;padding:18px 14px;overflow-y:auto}
 .brand{display:flex;align-items:center;gap:10px;padding:0 6px 12px;border-bottom:1px solid var(--line)}
-.brand .lang{margin-left:auto;border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:3px 9px;cursor:pointer;font-size:12px;color:var(--accent);font-weight:600}
-.brand .lang:hover{background:var(--soft)}
+.lang{display:block;width:100%;margin:12px 0 0;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12.5px;color:var(--accent);font-weight:600;text-align:center}
+.lang:hover{background:var(--soft)}
 .brand .logo{width:30px;height:30px;border-radius:7px;background:var(--accent);color:#fff;font-weight:700;display:inline-grid;place-items:center;font-size:13px;flex:none}
-.brand-text strong{display:block;font-size:13.5px;line-height:1.25}
-.brand-text small{color:var(--muted);font-size:11px}
+.brand-text{min-width:0;line-height:1.2}
+.brand-text strong{display:block;font-size:13px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand-text small{display:block;color:var(--muted);font-size:10.5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nav{display:flex;flex-direction:column;gap:2px;margin-top:14px}
 .nav a{display:block;padding:8px 12px;border-radius:7px;color:var(--ink);font-size:13.5px}
 .nav a:hover{background:var(--soft);text-decoration:none}

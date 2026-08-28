@@ -330,7 +330,7 @@
   const NAV = { overview:["概述","Overview"], protocol:["协议","Protocol"], c910:["C910 实现","C910 RTL"], formal:["形式验证","Formal Verification"] };
   function renderStatic(){
     const z = LAN==='zh';
-    document.getElementById('brandSub').textContent = z ? "一致性 · 信号 · C910 RTL" : "Coherency · Signals · C910 RTL";
+    document.getElementById('brandSub').textContent = z ? "一致性 · C910 RTL" : "Coherency · C910 RTL";
     document.getElementById('langBtn').textContent = z ? "EN" : "中文";
     document.getElementById('backLink').textContent = z ? "← RISC-V 指令文档" : "← RISC-V Reference";
     document.querySelectorAll('#nav a').forEach(a => { a.textContent = (NAV[a.dataset.nav]||['',''])[z?0:1]; });
