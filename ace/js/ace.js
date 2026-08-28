@@ -47,6 +47,31 @@
     );
   }
 
+  function c910SVG(){
+    // C910MP architecture: 2 cores -> BIU(ACE-style) -> CIU -> L2 -> external AXI4
+    let s = `<svg width="760" height="360" viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img">`;
+    const box = (x,y,w,h,title,sub,fill) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${fill||'#f6f8fa'}" stroke="#d0d7de"/><text x="${x+w/2}" y="${y+20}" text-anchor="middle" font-size="12.5" font-weight="600" fill="#24292f" font-family="sans-serif">${esc(title)}</text><text x="${x+w/2}" y="${y+38}" text-anchor="middle" font-size="10" fill="#57606a" font-family="monospace">${esc(sub)}</text>`;
+    const arrow = (x1,y1,x2,y2,label) => {
+      const mx=(x1+x2)/2, my=(y1+y2)/2;
+      let a = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#0969da" stroke-width="1.6"/>`;
+      if(x2!==x1||y2!==y1) a += `<polygon points="${x2},${y2} ${x2-(x2-x1?Math.sign(x2-x1)*8:0)},${y2-4} ${x2-(x2-x1?Math.sign(x2-x1)*8:0)},${y2+4}" fill="#0969da"/>`;
+      if(label) a += `<text x="${mx}" y="${my-6}" text-anchor="middle" font-size="9.5" fill="#0969da" font-family="sans-serif">${esc(label)}</text>`;
+      return a;
+    };
+    s += box(60,20,240,52,"Core 0 · ct_top x0","ct_core → ct_biu_top (ACE-style)");
+    s += box(460,20,240,52,"Core 1 · ct_top x1","ct_core → ct_biu_top (ACE-style)");
+    s += box(180,140,400,64,"CIU · ct_ciu_top","Coherence Interconnect Unit (snoop buffer)");
+    s += box(180,250,400,60,"Shared L2 · ct_l2c_top","1MB 16-way 2 sub-banks (inclusive)");
+    s += box(500,330,220,24,"External AXI4-128 master","ct_ebiu_* (no snoop)");
+    s += arrow(180,72,300,140,"ARSNOOP/AWSNOOP · AC/CR/CD");
+    s += arrow(580,72,500,140,"ARSNOOP/AWSNOOP · AC/CR/CD");
+    s += arrow(380,204,380,250,"");
+    s += arrow(380,310,610,342,"WriteNoSnoop → AXI4");
+    s += `<text x="60" y="110" font-size="9.5" fill="#57606a" font-family="monospace">internal ACE-style / MOESI</text>`;
+    s += `</svg>`;
+    return s;
+  }
+
   /* ---------------- content sections ---------------- */
   const S = {};
 
@@ -215,7 +240,77 @@
   </div>`;
 
   S.c910 = () => `<h1>C910 具体实现与 RTL 解读</h1>
-  <div class="card"><p>玄铁 C910 的总线/一致性接口与 RTL 文件解读正在调研撰写（openc910 仓库），将在第 7 版补齐。</p></div>`;
+  <p class="lead">玄铁 C910（T-Head XuanTie C910）是开源的 RISC-V 64 位多核处理器。它最有价值的一点：<b>对外暴露的是普通 AXI4-128 主口，而 ACE 一致性发生在芯片内部</b>（core↔CIU↔L2 之间）。这一章按「架构 → 一致性通路 → 具体 RTL 文件」逐层解读。</p>
+
+  <h2>1. C910MP 集群架构（openc910 实际结构）</h2>
+  <div class="card">
+    <p>开源的 <code>openc910</code> 仓库是一个 <b>2 核集群（C910MP）</b>：</p>
+    <div class="diagram">${c910SVG()}</div>
+    <ul>
+      <li><code>openC910.v</code> 例化 2 个核 <code>ct_top x0/x1</code>、1 个 <code>ct_ciu_top</code>（CIU，一致性互连单元）、1 个 <code>ct_l2c_top</code>（共享 L2）。</li>
+      <li><b>L1</b>：64KB 指令 + 64KB 数据，2 路组相联，64B 行。</li>
+      <li><b>CIU</b>：核心之间的一致性点，含 snoop 缓冲与地址缓冲。</li>
+      <li><b>L2</b>：1MB、16 路、2 个子 bank（各 512KB），64B 行，<b>inclusive</b>（含 L1 内容），带预取。</li>
+      <li><b>对外</b>：仅 AXI4-128 主口（AR/W/B/AW/R）+ ACE-Lite 低功耗信号（CACTIVE/CSYSACK/CSYSREQ），<b>没有对外 ACE 监听口</b>。</li>
+    </ul>
+    <div class="note warn"><b>关键结论（已从 RTL + 手册核实）</b>：openc910 的一致性协议是 <b>MOESI</b>（L1 为 MESI、L2 为 MOESI），并且 ACE 的监听信号（ARSNOOP/AWSNOOP/AWUNIQUE/ARDOMAIN/AWDOMAIN + AC/CR/CD 通道）出现在 <b>core 的 BIU 与 CIU 之间</b>；而 SoC 顶层对外只接普通 AXI4。因此「C910 的 ACE」讲的是<b>内部一致性互连</b>，不是对外总线。</div>
+  </div>
+
+  <h2>2. 一致性通路：core ↔ CIU ↔ L2</h2>
+  <div class="card">
+    <table>
+      <tr><th>层次</th><th>模块</th><th>一致性角色</th></tr>
+      <tr><td>L1（每核）</td><td><code>ct_lsu_top</code> / <code>ct_lsu_dcache_top</code></td><td>维护 D 缓存 MOESI 状态；接收/发起 snoop</td></tr>
+      <tr><td>核总线接口</td><td><code>biu/rtl/ct_biu_top.v</code> 及 <code>ct_biu_snoop_channel.v</code> / <code>read_channel</code> / <code>write_channel</code></td><td>把核的访存转成 ACE 风格事务，带 <code>arsnoop/awsnoop/awunique/ardomain/awdomain</code></td></tr>
+      <tr><td>一致性互连</td><td><code>ciu/rtl/ct_ciu_top.v</code> + <code>ct_ciu_snb*.v</code>（snoop buffer）</td><td>仲裁、把一致性请求定向/广播成 AC 监听，收 CR/CD 响应</td></tr>
+      <tr><td>共享 L2</td><td><code>l2c/rtl/ct_l2c_top.v</code> + <code>ct_l2c_icc.v</code>（cache-coherence control）+ <code>ct_l2c_sub_bank.v</code></td><td>MOESI 目录/状态、脏行回写、inclusive 维护</td></tr>
+      <tr><td>对外</td><td><code>ciu/rtl/ct_ebiu_*.v</code>（external BIU，含 <code>ct_ebiu_snoop_channel_dummy.v</code>）</td><td>把内部事务转换成普通 AXI4-128；dummy snoop 通道证明「对外无 snoop」</td></tr>
+    </table>
+    <p>一句话理解：<b>一致性被封闭在 CIU 内部</b>，CIU 之上是 ACE 风格监听，CIU 之下（L2 出口）转成非一致 AXI4。这正是 ACE「把一致性域圈起来」的教科书式落点。</p>
+  </div>
+
+  <h2>3. RTL 走读：关键文件与要点</h2>
+  <div class="card">
+    <p>仓库根为 <code>C910_RTL_FACTORY/gen_rtl/</code>，下面是走读主线（模块名均已在仓库中核实存在）：</p>
+    <h3>3.1 核总线接口 BIU（ACE 信号在这里出现）</h3>
+    <ul>
+      <li><code>biu/rtl/ct_biu_top.v</code>：核的总线出口，<code>_arsnoop[3:0] / _awsnoop[2:0] / _awunique / _ardomain[1:0] / _awdomain[1:0]</code> —— 位宽与 AMBA ACE 完全一致（ARSNOOP 4b、AWSNOOP 3b、AWUNIQUE 1b、DOMAIN 2b）。</li>
+      <li><code>ct_biu_snoop_channel.v</code>：<code>acaddr/acprot/acsnoop/acvalid/acready</code> 监听地址通道。</li>
+      <li><code>ct_biu_read_channel.v / ct_biu_write_channel.v / ct_biu_req_arbiter.v</code>：读写请求与仲裁。</li>
+    </ul>
+    <h3>3.2 CIU（一致性互连 + snoop 缓冲）</h3>
+    <ul>
+      <li><code>ciu/rtl/ct_ciu_top.v</code>：CIU 顶层。</li>
+      <li><code>ct_ciu_snb.v / ct_ciu_snb_arb.v / ct_ciu_snb_sab.v</code>：snoop buffer 与 snoop address buffer —— 处理被监听的地址队列。</li>
+      <li><code>ct_ciu_l2cif.v</code>：CIU↔L2 接口；<code>ct_ciu_ncq.v / ct_ciu_vb.v</code>：非缓存请求队列 / 写缓冲。</li>
+      <li><code>ct_ebiu_*.v</code>：外部 AXI4 转换；<code>ct_ebiu_snoop_channel_dummy.v</code> 是「对外无 snoop」的直接证据。</li>
+    </ul>
+    <h3>3.3 L2（MOESI 状态机）</h3>
+    <ul>
+      <li><code>l2c/rtl/ct_l2c_top.v / ct_l2c_sub_bank.v</code>（两个子 bank）。</li>
+      <li><code>ct_l2c_icc.v</code>：L2 的一致性控制（MOESI 状态推进、inclusive 维护）。</li>
+      <li><code>ct_l2c_tag.v / ct_l2c_data.v / ct_l2c_wb.v / ct_l2c_prefetch.v</code>：标签/数据/回写/预取。</li>
+    </ul>
+    <h3>3.4 L1 数据缓存的 snoop 侧</h3>
+    <ul>
+      <li><code>lsu/rtl/ct_lsu_snoop_snq.v(+entry) / ct_lsu_snoop_ctcq.v(+entry) / ct_lsu_snoop_req_arbiter.v / ct_lsu_snoop_resp.v</code>：L1 监听队列与响应。</li>
+      <li><code>ct_lsu_icc.v / ct_lsu_wmb.v / ct_lsu_bus_arb.v</code>：L1 一致性控制 / 写合并缓冲 / 总线仲裁。</li>
+    </ul>
+  </div>
+
+  <h2>4. 一个 WriteUnique 在 C910 内部如何走</h2>
+  <div class="card">
+    <ol>
+      <li>核 0 要独占写一行 → BIU 在 <code>AW</code> 上给出 <code>AWSNOOP=WriteUnique</code>（3b 编码）。</li>
+      <li>CIU 收到后，向核 1 发 <code>AC</code> 监听（<code>ACSNOOP=MakeInvalid</code>），核 1 的 <code>ct_lsu_snoop_*</code> 查自己的 D 缓存。</li>
+      <li>核 1 经 <code>CR</code> 回 <code>PassClean</code>（干净）或经 <code>CD</code> 交出脏数据。</li>
+      <li>CIU 把该行标记为核 0 Unique，核 0 写数据；必要时 CIU 把合并结果经 <code>ct_ebiu_*</code> 转 AXI4 写回内存（对外就是一次普通 AXI 写，无 snoop）。</li>
+    </ol>
+    <p>这正是本站 <a href="#/writeunique">WriteUnique</a> 时序图在 C910 内部逻辑上的具体落地。</p>
+  </div>
+
+  <div class="note"><b>诚实声明</b>：开源的 openC910 固定为 2 核 + 对外 AXI4；<b>多簇（如 TH1520 的 4 核）跨簇一致性不在此开源 RTL 内</b>。我核对了 ACE 信号位宽与 AMBA ACE 一致，但未逐一复推每条 snoop 事务的 ARM 规范编码 —— C910 用户手册明确「参考 AMBA AXI/ACE Protocol Specification」。</div>
+  <p class="lead" style="margin-top:16px">参考：<a href="https://github.com/T-head-Semi/openc910">github.com/T-head-Semi/openc910</a>（<code>C910_RTL_FACTORY/gen_rtl/</code>）、TH1520 论文 arXiv:2311.12808。</p>`;
 
   S.formal = () => `<h1>ACE 协议形式验证论文精讲</h1>
   <div class="card"><p>正在调研筛选最优论文，将在第 8~10 版补齐。</p></div>`;
