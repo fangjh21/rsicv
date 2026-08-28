@@ -142,7 +142,7 @@
     s += box(45,355,"SC","Shared Clean","#eef6ff");
     s += box(660,355,"I","Invalid","#ffffff");
     // ring transitions
-    s += ar(205,85,360,85,"write",282,77);
+    s += ar(205,85,360,85,"store hit (local)",282,77);
     s += ar(520,85,660,85,"ReadShared snoop",590,77);
     s += ar(740,120,740,355,"MakeInvalid",792,240);
     s += ar(660,390,205,390,"ReadShared / ReadClean",430,382);
@@ -151,7 +151,7 @@
     s += ar(125,120,740,355,"ReadUnique / ReadOnce",250,155,22);
     s += ar(440,120,740,355,"WriteBack",488,155,40);
     s += ar(740,120,205,355,"WriteClean",630,155,-25);
-    s += `<text x="440" y="440" text-anchor="middle" font-size="11.5" fill="#57606a" font-family="var(--sans)" stroke="#ffffff" stroke-width="3" paint-order="stroke">Also: eviction and snoop-invalidate return a line to I (see table)</text>`;
+    s += `<text x="440" y="440" text-anchor="middle" font-size="11" fill="#57606a" font-family="var(--sans)" stroke="#ffffff" stroke-width="3" paint-order="stroke">store hit (UC→UD) is a silent cache upgrade — no bus transaction; eviction / snoop-invalidate return a line to I</text>`;
     s += `</svg>`;
     return s;
   }
