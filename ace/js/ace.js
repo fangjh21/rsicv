@@ -200,7 +200,60 @@
   <div class="note"><b>下一节</b>：逐信号逐位的精确定义见 <a href="#/signals">信号解释</a>。</div>`;
 
   S.signals = () => `<h1>信号解释</h1>
-  <div class="card"><p>逐通道逐信号表正在撰写，将在第 4 版补齐。</p></div>`;
+  <p class="lead">逐通道、逐信号。ACE = AXI4 基础信号 + 一致性增强信号。信号名以下表为准（前缀 <code>AW/W/B/AR/R/AC/CR/CD</code> 对应通道，<code>xVALID/xREADY</code> 为各通道握手）。</p>
+
+  <h2>1. AXI4 基础通道（先记住这些）</h2>
+  <div class="card">
+    <table>
+      <tr><th>通道</th><th>关键信号</th><th>含义</th></tr>
+      <tr><td><code>AW</code> 写地址</td><td><code>AWVALID/AWREADY/AWID/AWADDR/AWLEN/AWSIZE/AWBURST/AWLOCK/AWCACHE/AWPROT/AWQOS</code></td><td>写事务地址与属性；AWLEN 突发长度、AWSIZE 每拍字节数</td></tr>
+      <tr><td><code>W</code> 写数据</td><td><code>WVALID/WREADY/WID/WDATA/WSTRB/WLAST</code></td><td>写数据 + 字节选通 WSTRB（每 bit 对应一字节）+ 末拍 WLAST</td></tr>
+      <tr><td><code>B</code> 写响应</td><td><code>BVALID/BREADY/BID/BRESP</code></td><td>写完成；BRESP=OKAY/EXOKAY/SLVERR/DECERR</td></tr>
+      <tr><td><code>AR</code> 读地址</td><td><code>ARVALID/ARREADY/ARID/ARADDR/ARLEN/ARSIZE/ARBURST/ARLOCK/ARCACHE/ARPROT/ARQOS</code></td><td>读事务地址与属性</td></tr>
+      <tr><td><code>R</code> 读数据</td><td><code>RVALID/RREADY/RID/RDATA/RRESP/RLAST</code></td><td>读数据 + 响应；RLAST 标末拍</td></tr>
+    </table>
+  </div>
+
+  <h2>2. ACE 一致性增强信号（核心）</h2>
+  <div class="card">
+    <table>
+      <tr><th>信号</th><th>通道</th><th>位宽</th><th>含义</th></tr>
+      <tr><td><code>AWSNOOP</code></td><td>AW</td><td>3b</td><td>本次写的一致性类型（WriteNoSnoop/WriteUnique/WriteLineUnique/WriteBack/WriteClean）</td></tr>
+      <tr><td><code>AWUNIQUE</code></td><td>AW</td><td>1b</td><td>对 WriteLineUnique：=1 表示已是唯一副本、互连可省监听</td></tr>
+      <tr><td><code>AWDOMAIN</code></td><td>AW</td><td>2b</td><td>写所属一致性域（Non-shareable / Inner / Outer / System）</td></tr>
+      <tr><td><code>AWBAR</code></td><td>AW</td><td>2b</td><td>写屏障（=1 MemoryBarrier，=2 SyncBarrier）</td></tr>
+      <tr><td><code>ARSNOOP</code></td><td>AR</td><td>4b</td><td>本次读的一致性类型（ReadNoSnoop/ReadOnce/ReadClean/ReadShared/ReadNotSharedDirty/ReadUnique/CleanInvalid/MakeInvalid/CleanShared/MakeUnique）</td></tr>
+      <tr><td><code>ARDOMAIN</code></td><td>AR</td><td>2b</td><td>读所属一致性域</td></tr>
+      <tr><td><code>ARBAR</code></td><td>AR</td><td>2b</td><td>读屏障</td></tr>
+      <tr><td><code>RACK</code></td><td>R</td><td>1b</td><td>读事务的读响应「可安全释放」握手（一致性事务专用完成点）</td></tr>
+      <tr><td><code>WACK</code></td><td>B</td><td>1b</td><td>写事务的写响应「可安全释放」握手</td></tr>
+      <tr><td><code>RRESP</code></td><td>R</td><td>3b</td><td>扩展含 OKAY/EXOKAY（PassDirty/PassClean 语义经 RRESP[2] 表达）</td></tr>
+    </table>
+  </div>
+
+  <h2>3. 监听三通道（AC / CR / CD）</h2>
+  <div class="card">
+    <table>
+      <tr><th>信号</th><th>通道</th><th>位宽</th><th>含义</th></tr>
+      <tr><td><code>ACVALID/ACREADY</code></td><td>AC</td><td>1b</td><td>监听地址握手</td></tr>
+      <tr><td><code>ACADDR</code></td><td>AC</td><td>addr</td><td>被监听地址</td></tr>
+      <tr><td><code>ACSNOOP</code></td><td>AC</td><td>4b</td><td>监听事务类型（ReadOnce/ReadClean/ReadShared/ReadNotSharedDirty/CleanInvalid/MakeInvalid/CleanShared/MakeUnique）</td></tr>
+      <tr><td><code>ACPROT</code></td><td>AC</td><td>3b</td><td>保护属性</td></tr>
+      <tr><td><code>CRVALID/CRREADY</code></td><td>CR</td><td>1b</td><td>监听响应握手</td></tr>
+      <tr><td><code>CRRESP</code></td><td>CR</td><td>5b</td><td>监听结果：PassDirty / PassClean / Fail（+ 其他）</td></tr>
+      <tr><td><code>CDVALID/CDREADY</code></td><td>CD</td><td>1b</td><td>监听数据握手</td></tr>
+      <tr><td><code>CDDATA</code></td><td>CD</td><td>data</td><td>交出的脏缓存行数据</td></tr>
+      <tr><td><code>CDLAST</code></td><td>CD</td><td>1b</td><td>脏数据末拍</td></tr>
+    </table>
+    <div class="note warn"><b>编码以 ARM IHI 0022 为准</b>：ARSNOOP 4b（0b0000 ReadNoSnoop … 0b1001 MakeUnique）、AWSNOOP 3b（0b000 WriteNoSnoop … 0b100 WriteClean）、ACSNOOP 4b（0b0000 ReadOnce … 0b0111 MakeUnique）的逐值含义见 <a href="#/transactions">访问分类</a>；完整 5b CRRESP 各值在下面给出主要三项，其余见规范附录。</div>
+  </div>
+
+  <h2>4. 低功耗通道（ACE-Lite / C-channel）</h2>
+  <div class="card">
+    <p>ACE-Lite 主设备（如 C910 对外侧）用三条信号表达「我是否处于可关时钟状态」：<code>CACTIVE</code>（主设备有无未完成事务）、<code>CSYSREQ</code>（系统请求主设备进入/退出低功耗）、<code>CSYSACK</code>（主设备确认进入低功耗）。C910 的 <code>biu_pad_cactive / pad_biu_csysreq / biu_pad_csysack</code> 即此通道 —— 注意它不是一致性，而是电源门控握手。</p>
+  </div>
+
+  <div class="note"><b>记忆</b>：一致性读写看 <code>AWSNOOP/ARSNOOP</code>（事务「想要什么一致性结果」）；互连据此在 <code>AC</code> 发监听、缓存经 <code>CR/CD</code> 回结果；<code>RACK/WACK</code> 是「资源可释放」的独立完成握手。</div>`;
 
   S.transactions = () => `<h1>访问分类</h1>
   <div class="card"><p>读写/监听/屏障事务编码与含义正在撰写，将在第 5 版补齐。</p></div>`;
