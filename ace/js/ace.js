@@ -7,10 +7,10 @@
     const top = 44, LH = opts.h || 560, gap = LH/(messages.length+1);
     const X = participants.map((p,i)=> 80 + i*((opts.w||760)-160)/(participants.length-1 || 1));
     let s = `<svg width="${opts.w||760}" height="${LH+30}" viewBox="0 0 ${opts.w||760} ${LH+30}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="sequence diagram">`;
-    if(opts.title) s += `<text x="${(opts.w||760)/2}" y="16" text-anchor="middle" font-size="13" font-weight="600" fill="#24292f" font-family="sans-serif">${esc(opts.title)}</text>`;
+    if(opts.title) s += `<text x="${(opts.w||760)/2}" y="16" text-anchor="middle" font-size="13" font-weight="600" fill="#24292f" font-family="var(--sans)">${esc(opts.title)}</text>`;
     participants.forEach((p,i)=>{
       s += `<rect x="${X[i]-54}" y="22" width="108" height="24" rx="4" fill="#f6f8fa" stroke="#d0d7de"/>`;
-      s += `<text x="${X[i]}" y="38" text-anchor="middle" font-size="11" fill="#24292f" font-family="sans-serif">${esc(p)}</text>`;
+      s += `<text x="${X[i]}" y="38" text-anchor="middle" font-size="11" fill="#24292f" font-family="var(--sans)">${esc(p)}</text>`;
       s += `<line x1="${X[i]}" y1="46" x2="${X[i]}" y2="${LH-6}" stroke="#d0d7de" stroke-width="1.5" stroke-dasharray="4 3"/>`;
     });
     messages.forEach((m,i)=>{
@@ -21,8 +21,8 @@
       s += `<line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="#0969da" stroke-width="1.6"/>`;
       s += `<polygon points="${x1},${y} ${x1-dir*8},${y-4} ${x1-dir*8},${y+4}" fill="#0969da"/>`;
       const mid = (from+to)/2;
-      s += `<text x="${mid}" y="${y-6}" text-anchor="middle" font-size="10.5" fill="#24292f" font-family="monospace">${esc(m[2])}</text>`;
-      if(m[3]) s += `<text x="${mid}" y="${y+13}" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="monospace">${esc(m[3])}</text>`;
+      s += `<text x="${mid}" y="${y-6}" text-anchor="middle" font-size="10.5" fill="#24292f" font-family="var(--mono)">${esc(m[2])}</text>`;
+      if(m[3]) s += `<text x="${mid}" y="${y+13}" text-anchor="middle" font-size="9.5" fill="#57606a" font-family="var(--mono)">${esc(m[3])}</text>`;
     });
     s += `</svg>`;
     return s;
@@ -46,12 +46,12 @@
 
   function c910SVG(){
     let s = `<svg width="760" height="360" viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img">`;
-    const box = (x,y,w,h,title,sub,fill) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${fill||'#f6f8fa'}" stroke="#d0d7de"/><text x="${x+w/2}" y="${y+20}" text-anchor="middle" font-size="12.5" font-weight="600" fill="#24292f" font-family="sans-serif">${esc(title)}</text><text x="${x+w/2}" y="${y+38}" text-anchor="middle" font-size="10" fill="#57606a" font-family="monospace">${esc(sub)}</text>`;
+    const box = (x,y,w,h,title,sub,fill) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${fill||'#f6f8fa'}" stroke="#d0d7de"/><text x="${x+w/2}" y="${y+20}" text-anchor="middle" font-size="12.5" font-weight="600" fill="#24292f" font-family="var(--sans)">${esc(title)}</text><text x="${x+w/2}" y="${y+38}" text-anchor="middle" font-size="10" fill="#57606a" font-family="var(--mono)">${esc(sub)}</text>`;
     const arrow = (x1,y1,x2,y2,label) => {
       const mx=(x1+x2)/2, my=(y1+y2)/2;
       let a = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#0969da" stroke-width="1.6"/>`;
       if(x2!==x1||y2!==y1) a += `<polygon points="${x2},${y2} ${x2-(x2-x1?Math.sign(x2-x1)*8:0)},${y2-4} ${x2-(x2-x1?Math.sign(x2-x1)*8:0)},${y2+4}" fill="#0969da"/>`;
-      if(label) a += `<text x="${mx}" y="${my-6}" text-anchor="middle" font-size="9.5" fill="#0969da" font-family="sans-serif">${esc(label)}</text>`;
+      if(label) a += `<text x="${mx}" y="${my-6}" text-anchor="middle" font-size="9.5" fill="#0969da" font-family="var(--sans)">${esc(label)}</text>`;
       return a;
     };
     s += box(60,20,240,52,"Core 0 · ct_top x0","ct_core → ct_biu_top (ACE-style)");
@@ -63,7 +63,7 @@
     s += arrow(580,72,500,140,"ARSNOOP/AWSNOOP · AC/CR/CD");
     s += arrow(380,204,380,250,"");
     s += arrow(380,310,610,342,"WriteNoSnoop → AXI4");
-    s += `<text x="60" y="110" font-size="9.5" fill="#57606a" font-family="monospace">internal ACE-style / MOESI</text>`;
+    s += `<text x="60" y="110" font-size="9.5" fill="#57606a" font-family="var(--mono)">internal ACE-style / MOESI</text>`;
     s += `</svg>`;
     return s;
   }

@@ -8,11 +8,12 @@
   --line:#d0d7de;
   --muted:#6e7781;
   --soft:#f6f8fa;
-  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --mono:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans:ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
-body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;-webkit-font-smoothing:antialiased}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.65;-webkit-font-smoothing:antialiased}
 h1,h2,h3,h4,strong,b,th,.badge,.btn,.stat b,.nav a{font-weight:400}
 /* keep anchor-jump targets clear of the sticky top bar */
 h2,h3,h4{scroll-margin-top:76px}

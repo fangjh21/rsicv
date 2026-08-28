@@ -13,8 +13,8 @@ window.RISCV = window.RISCV || {};
     mask:{fill:"#eef6ff",stroke:"#0550ae",text:"#0550ae"},
     mem:{fill:"#ffffff",stroke:"#57606a",text:"#57606a"},
   };
-  const MONO = "ui-monospace,Menlo,Consolas,monospace";
-  const SANS = "ui-sans-serif,system-ui,sans-serif";
+  const MONO = "var(--mono)";
+  const SANS = "var(--sans)";
   const CAP = 8;
   const SW = 99;               // scalar box width (32b / XLEN registers are small, not a full group)
   const MASK = [1,0,1,1,0,1,0,1];
