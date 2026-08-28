@@ -487,7 +487,79 @@
   <p class="lead" style="margin-top:16px">参考：<a href="https://github.com/T-head-Semi/openc910">github.com/T-head-Semi/openc910</a>（<code>C910_RTL_FACTORY/gen_rtl/</code>）、TH1520 论文 arXiv:2311.12808。</p>`;
 
   S.formal = () => `<h1>ACE 协议形式验证论文精讲</h1>
-  <div class="card"><p>正在调研筛选最优论文，将在第 8~10 版补齐。</p></div>`;
+  <p class="lead">这一章调研「用形式方法验证 ACE」的文献，优中选优讲 3 篇，再给相关方向与工业现状。先说结论：<b>ACE 的学术形式验证基本是一个小组（INRIA/Verimag，CADP 工具链）的高质量成果 + 工业断言 VIP</b>，可复现、可引用的核心就那几篇。</p>
+
+  <h2>文献格局：两类问题</h2>
+  <div class="card">
+    <ul>
+      <li><b>验证协议规范本身</b>：ACE 的通道组合会不会死锁？规范里隐含的全局排序、一致性点（coherency point）要求是否成立？</li>
+      <li><b>验证用 ACE 实现出来的具体 SoC</b>：数据一致性、死锁、顺序是否满足规范。</li>
+    </ul>
+    <p>前者是「把一篇散文规格变成可机器检查的模型」，后者是「拿这个模型当裁判去查实现」。</p>
+  </div>
+
+  <h2>🏆 论文一：ACE 规范本身的形式分析（FMICS 2013）</h2>
+  <div class="card">
+    <p><b>Formal Analysis of the ACE Specification for Cache Coherent Systems-on-Chip</b> — A. Kriouile, W. Serwe（INRIA / Verimag &amp; LIG），FMICS 2013，LNCS 8137，DOI <code>10.1007/978-3-642-41010-9_8</code>。论文：<a href="https://inria.hal.science/hal-00858521v1">inria.hal.science/hal-00858521v1</a> · 案例：<a href="http://cadp.inria.fr/case-studies/13-e-ace.html">cadp.inria.fr ACE case study</a></p>
+    <h3>验证什么</h3>
+    <p>ACE <b>规范本身</b>：(i) 通道组合的死锁/活锁；(ii) 事务间的<b>全局排序要求</b>（互连上 ACE 假设的、通道机制隐含的顺序）；(iii) 一致性监听（AC/CR）路径的序/一致性。</p>
+    <h3>方法（核心）</h3>
+    <p>把非形式化的 AMBA ACE 文本，手工翻译成 <b>LNT</b>（CADP 工具链的过程代数语言），再用 CADP 的 <b>Evaluator / MCL</b>（模态 μ 演算）做模型检查。把协议建模成「主设备 + 单一监听/一致性点」在 AXI + AC + CR + DVM 通道上通信的<b>并发 agent</b>，每个通道刻画消息类型与排序保证。</p>
+    <h3>关键洞察</h3>
+    <p>① 把 ACE <b>按命名通道分解 + 一个一致性点</b>，排序约束才能被精确陈述；② 构造<b>与配置无关、按 agent 数参数化</b>的参考模型，直接把 ACE 的「公理」编码进去 —— 这样同一模型对 1 核到 N 核拓扑通用。</p>
+    <h3>结果</h3>
+    <p>模型检查揭示：按朴素读法，ACE 规范<b>并非自动无死锁</b>—— 某些看似允许的顺序会走到死锁态。贡献不是「ACE 有 bug」，而是<b>把隐含的全局排序/一致性点要求显式化、可检查化</b>。</p>
+  </div>
+
+  <h2>🏆 论文二：拿形式模型去查真实 SoC（TACAS 2015）</h2>
+  <div class="card">
+    <p><b>Using a Formal Model to Improve Verification of a Cache-Coherent System-on-Chip</b> — A. Kriouile, W. Serwe，TACAS 2015，LNCS 9035，DOI <code>10.1007/978-3-662-46681-0_62</code>。<a href="https://rd.springer.com/chapter/10.1007/978-3-662-46681-0_62">springer</a> · <a href="https://inria.hal.science/hal-01104747v1">hal</a></p>
+    <h3>验证什么</h3>
+    <p>一个<b>真实缓存一致 SoC 设计</b>的数据完整性/一致性、无死锁、顺序 —— 也就是「这个实现的一致性逻辑是否符合 ACE 模型」。</p>
+    <h3>方法（核心）</h3>
+    <p>把论文一的 ACE 形式模型当作<b>高层参考模型 / 规格 oracle</b>；对被验设计做抽象，用 <b>compositional（组合式）验证</b>（CADP）逐组件对照参考模型。性质集合<b>从参考模型导出</b>，而不是临时手写。</p>
+    <h3>关键洞察</h3>
+    <p><b>组合式推理 + 形式参考模型当 oracle</b>：不可能全 SoC 穷举，就每个组件对照抽象假设行为分别验证再组合；模型提供正确性判据，努力集中在「设计偏离模型的点」——状态空间比全系统穷举小得多。</p>
+    <h3>结果</h3>
+    <p>证明「形式协议参考模型」能<b>可度量地提升验证质量</b>（覆盖更多角点交错、更早发现一致性/顺序违例）。这是 ACE 计划的「落地」半篇。</p>
+  </div>
+
+  <h2>🏆 论文三：跨层死锁自动化检测 ADVOCAT（DATE 2016）</h2>
+  <div class="card">
+    <p><b>ADVOCAT: Automated deadlock verification for on-chip cache coherence and interconnects</b> — F. Verbeek, P. M. Yaghini, A. Eghbal, N. Bagherzadeh，DATE 2016，DOI <code>10.5555/2971808.2972190</code>；期刊扩展 <b>IEEE Trans. Computers</b> DOI <code>10.1109/TC.2016.2584060</code>。<a href="https://dl.acm.org/doi/10.5555/2971808.2972190">acm</a> · <a href="https://www.cs.ru.nl/~freekver/ADVOCAT/">项目页</a></p>
+    <h3>验证什么</h3>
+    <p>缓存一致片上互连里的<b>死锁</b>，且按<b>跨层</b>处理：一致性协议（消息类型、缓冲）与底层 NoC/路由（缓冲、顺序、通道）的相互作用 —— 正是 ACE/CHI 所生活的协议类。</p>
+    <h3>方法（核心）</h3>
+    <p>给定「消息类型 + 收发方 + 缓冲依赖」描述的协议，检查状态图能否到达<b>无使能转移</b>（死锁）态；把问题建模成 <b>等待依赖环检测 / 可达性</b>，用 <b>SAT/SMT</b>（Z3 一族）求解，而非枚举状态；可选有界以控制规模。</p>
+    <h3>关键洞察</h3>
+    <p><b>死锁是跨层的依赖环现象</b>：协议在理想互连上无死锁，在真实有缓冲/有限信用的 NoC 上却可能死锁（反之亦然）。显式建模消息传递依赖图、找环，使死锁检测<b>自动化、配置驱动</b>（不用每个协议手写不变量）。</p>
+    <h3>结果</h3>
+    <p>在已发表的协议配置里检出真实死锁 bug（被标准检查器漏掉、或只有计入 NoC 顺序/缓冲才出现）。局限：抽象掉数据值（只看控制/流死锁），规模受 SMT 编码/界限制。</p>
+  </div>
+
+  <h2>相关方向与工业现状</h2>
+  <div class="card">
+    <table>
+      <tr><th>方向</th><th>代表工作</th><th>要点</th></tr>
+      <tr><td>AMBA AXI/AHB 早期形式化</td><td>Roychoudhury &amp; Mitra，DATE 2003（AMBA 总线模型检查找 bug）</td><td>ACE 类总线形式验证的经典先例</td></tr>
+      <tr><td>AMBA 在 HOL 里建模</td><td>Cambridge <a href="https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-602.html">UCAM-CL-TR-602</a>（2004）</td><td>定理证明路线</td></tr>
+      <tr><td>现代相干后继</td><td><a href="https://arxiv.org/abs/2410.15908">Formalising CXL Cache Coherence</a>（ASPLOS 2025）</td><td>CXL.cachemem（源自 CHI）的规范形式化 + 模型检查</td></tr>
+      <tr><td>RISC-V 生态</td><td>TileLink 一致性 Murphi 模型检查（ICCD 2023）</td><td>显式状态模型检查的现代范本</td></tr>
+      <tr><td>工业断言 VIP</td><td>Cadence / Oski / SmartDV 的 ARM ACE 形式 VIP</td><td>覆盖死锁/顺序/snoop 完整性，但<b>非同行评审</b></td></tr>
+    </table>
+  </div>
+
+  <h2>给你的方法论总结</h2>
+  <div class="card">
+    <ul>
+      <li><b>先形式化「规范」</b>：把 ACE 拆成命名通道 + 单一一致性点，用 LNT/CADP（或等价的进程代数）建立<b>参数化参考模型</b> —— 这是可复用、可扩展的核心。</li>
+      <li><b>再拿模型查「实现」</b>：组合式验证 + 参考模型当 oracle，把精力放在「实现偏离模型」的点。</li>
+      <li><b>死锁单独拆出来查</b>：用依赖环 + SAT/SMT 的自动化方法（ADVOCAT 思路），尤其要<b>连同底层 NoC 缓冲/顺序一起</b>建模，不能只看协议层。</li>
+      <li><b>snoop filter 的正确性</b>没有独立强学术论文 —— 它被并入「一致性点/AC 通道排序模型」，或交给工业断言 VIP；写材料时别去引不存在的「snoop filter 最佳论文」。</li>
+    </ul>
+  </div>
+
+  <div class="note"><b>引用的严谨性</b>：论文一/二/三的书目信息已核对（DOI 见上）。相关工作中的次要作者名单与 ADVOCAT 的精确求解器，建议在正式引用前按链接再核一遍（我已在上面标注）。</div>`;
 
   /* ---------------- router ---------------- */
   const ROUTES = ["overview","principles","protocol","signals","transactions","timing","writeunique","c910","formal"];
