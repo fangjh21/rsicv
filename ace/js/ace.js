@@ -1,4 +1,4 @@
-/* AMBA ACE learning site — content + hash router (self-contained, no build step). */
+/* AMBA ACE protocol reference — content + hash router (self-contained, no build step). */
 (function(){
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -8,7 +8,6 @@
     const top = 44, LH = opts.h || 560, gap = LH/(messages.length+1);
     const X = participants.map((p,i)=> 80 + i*((opts.w||760)-160)/(participants.length-1 || 1));
     let s = `<svg width="${opts.w||760}" height="${LH+30}" viewBox="0 0 ${opts.w||760} ${LH+30}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="sequence diagram">`;
-    // title
     if(opts.title) s += `<text x="${(opts.w||760)/2}" y="16" text-anchor="middle" font-size="13" font-weight="600" fill="#24292f" font-family="sans-serif">${esc(opts.title)}</text>`;
     participants.forEach((p,i)=>{
       s += `<rect x="${X[i]-54}" y="22" width="108" height="24" rx="4" fill="#f6f8fa" stroke="#d0d7de"/>`;
@@ -30,14 +29,13 @@
     return s;
   }
 
-  /* ---------------- WriteUnique ACE sequence (authoritative flow) ---------------- */
   function writeUniqueSVG(){
     return seqSVG(
-      ["RN (Requester)", "ICN (Home/Interconnect)", "Peer cache", "Memory"],
+      ["RN (Requester)", "ICN (Interconnect)", "Peer cache", "Memory"],
       [
         [0,1,"AW: WriteUnique","AWSNOOP=WriteUnique, AWADDR, AWCACHE"],
         [1,2,"Snoop: MakeInvalid","ACVALID/ACADDR, ACSNOOP=MakeInvalid"],
-        [2,1,"Snoop resp","CRVALID/CRRESP=PassClean (CD if dirty)"],
+        [2,1,"Snoop resp","CRVALID/CRRESP (CD if dirty)"],
         [0,1,"W: write data","WVALID/WDATA/WSTRB/WLAST"],
         [1,3,"WriteNoSnoop","AW + W to memory (downstream)"],
         [3,1,"B: BRESP","BVALID/BRESP=OKAY"],
@@ -48,7 +46,6 @@
   }
 
   function c910SVG(){
-    // C910MP architecture: 2 cores -> BIU(ACE-style) -> CIU -> L2 -> external AXI4
     let s = `<svg width="760" height="360" viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img">`;
     const box = (x,y,w,h,title,sub,fill) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${fill||'#f6f8fa'}" stroke="#d0d7de"/><text x="${x+w/2}" y="${y+20}" text-anchor="middle" font-size="12.5" font-weight="600" fill="#24292f" font-family="sans-serif">${esc(title)}</text><text x="${x+w/2}" y="${y+38}" text-anchor="middle" font-size="10" fill="#57606a" font-family="monospace">${esc(sub)}</text>`;
     const arrow = (x1,y1,x2,y2,label) => {
@@ -75,517 +72,469 @@
   /* ---------------- content sections ---------------- */
   const S = {};
 
-  S.overview = () => `<h1>AMBA ACE 协议学习站</h1>
-  <p class="lead">AXI Coherency Extensions（ACE）— 面向多核/多主机一致性系统的 AXI4 扩展，本页按「原理 → 协议 → 信号 → 访问分类 → 时序 → C910 实现 → 形式验证」递进。</p>
+  S.overview = () => `<h1>AMBA ACE Protocol Reference</h1>
   <div class="card">
-    <h3>概述</h3>
-    <p>AMBA <b>ACE</b> 在标准 AXI4 的 5 条通道（AW / W / B / AR / R）之上，增加了 <b>3 条监听通道</b>（<code>AC</code> 地址监听、<code>CR</code> 监听响应、<code>CD</code> 监听数据），并在 AW/AR 上增加 <code>AWSNOOP/ARSNOOP</code> 等一致性信号、在 R/B 上增加 <code>RACK/WACK</code>，使多个缓存型主机能在共享内存上维持缓存一致性。</p>
-    <p>它服务于 <b>big.LITTLE / 多核簇</b> 这一类「带缓存的多个主设备共享同一内存」的 SoC 架构 —— 正是玄铁 C910 这类 RISC-V 多核处理器要接入的互连场景。</p>
+    <p>AMBA <b>ACE</b> (AXI Coherency Extensions) adds <b>three snoop channels</b> — <code>AC</code> (snoop address), <code>CR</code> (snoop response), <code>CD</code> (snoop data) — to the five AXI4 channels (<code>AW/W/B/AR/R</code>), adds coherent signals such as <code>AWSNOOP/ARSNOOP</code> on the address channels and <code>RACK/WACK</code> on the response channels, and thereby lets multiple cache-capable masters maintain cache coherence over shared memory.</p>
+    <p>It targets the SoC arrangement in which several caches share one memory — precisely the scenario a multi-core RISC-V cluster such as the Xuantie C910 must attach to.</p>
   </div>
-  <div class="card">
-    <h3>页面结构</h3>
-    <ul class="toc">
-      <li><a href="#/principles">① 原理：为什么需要一致性、MOESI/模型</a></li>
-      <li><a href="#/protocol">② 协议内容：通道、握手、事务类</a></li>
-      <li><a href="#/signals">③ 信号解释：逐通道逐信号表</a></li>
-      <li><a href="#/transactions">④ 访问分类：读写/监听/屏障编码</a></li>
-      <li><a href="#/timing">⑤ 事务时序图：Read/Write 系列</a></li>
-      <li><a href="#/writeunique">⑥ WriteUnique 事务流程</a></li>
-      <li><a href="#/c910">⑦ C910 具体实现与 RTL 解读</a></li>
-      <li><a href="#/formal">⑧ ACE 形式验证论文精讲</a></li>
-    </ul>
-  </div>
-  <div class="note warn"><b>注意：「WriteUniquePtl / DBIDResp / SnpCleanInvalid / NCBWrData / CompDBIDResp」是 AMBA <u>CHI</u> 的流程，不是 ACE。</b>
-  ACE 基于 AXI 通道 + 监听（snoop），没有 DBID 分配、没有 Comp 完成报文；其独占写用 <code>AWSNOOP=WriteUnique</code> + AC 通道 <code>MakeInvalid</code> 监听实现。二者语义等价但机制不同，本站按 ACE 讲，并在 <a href="#/writeunique">WriteUnique</a> 一节对照 CHI。</div>
+  <div class="note warn"><b>Note: <code>WriteUniquePtl / DBIDResp / SnpCleanInvalid / NCBWrData / CompDBIDResp</code> are AMBA <u>CHI</u> terms, not ACE.</b>
+  ACE is channel-based (AXI + snoop) and has no DBID allocation or Comp completion message; its exclusive write uses <code>AWSNOOP=WriteUnique</code> plus an <code>MakeInvalid</code> snoop on the AC channel. The two are semantically equivalent but mechanically different; this reference covers ACE, with a CHI comparison under <a href="#/writeunique">WriteUnique</a>.</div>
   <div class="diagram">${writeUniqueSVG()}</div>`;
 
-  S.principles = () => `<h1>原理</h1>
-  <p class="lead">为什么多核需要 ACE：从「私有缓存 + 共享内存」带来的数据一致性问题出发，理解一致性不变量、缓存状态模型，以及 ACE 采用的监听（snoop）机制。</p>
+  S.principles = () => `<h1>Principles</h1>
 
-  <h2>1. 问题：多核与私有缓存</h2>
+  <h2>1. The problem: multiple cores, private caches</h2>
   <div class="card">
-    <p>每个 CPU 核有自己的 L1/L2 私有缓存，共享同一个主存。同一地址 <code>A</code> 可能同时存在于多个核的缓存里。当核 0 写入 A 而核 1 缓存里还留着旧值，核 1 读到的就是<b>陈旧数据</b>。这就是一致性要解决的问题。</p>
-    <p>单核里，写回缓存靠「命中/缺失」即可正确；多核里，必须额外保证<b>一个核的写能被其他核观察到</b>。</p>
+    <p>Each core has private L1/L2 caches over one shared memory. The same address <code>A</code> may be cached by several cores simultaneously; if core 0 writes A while core 1 still holds a stale copy, core 1 reads <b>stale data</b>. Coherence protocols exist to prevent exactly this.</p>
+    <p>A single core is correct with simple cache hit/miss logic; multiple cores additionally require that <b>a write by one core becomes observable to the others</b>.</p>
   </div>
 
-  <h2>2. 一致性不变量（Single-Writer / Multiple-Reader）</h2>
+  <h2>2. The coherence invariant (single-writer / multiple-reader)</h2>
   <div class="card">
-    <p>对任意一个内存位置，任何时刻只允许处于以下两者之一：</p>
+    <p>For any memory location, at any moment exactly one of the following holds:</p>
     <ul>
-      <li><b>单写者（SW）</b>：有且仅有一个核持有可写的副本（且此刻没有其他读副本）；或</li>
-      <li><b>多读者（MR）</b>：多个核持有只读副本，谁都不能写。</li>
+      <li><b>Single writer (SW)</b>: exactly one core holds a writable copy, and no other read copy exists; or</li>
+      <li><b>Multiple readers (MR)</b>: several cores hold read-only copies and none may write.</li>
     </ul>
-    <p>一切一致性协议（MESI/MOESI/ACE/CHI…）本质上都在<b>维护这个不变量</b>：写操作之前须「回收」所有其他副本（使其失效或回写脏数据），读操作之前须「确认」副本为最新。</p>
+    <p>Every coherence protocol (MESI, MOESI, ACE, CHI, …) ultimately maintains this invariant: a write must first reclaim all other copies (invalidate them or write back dirty data), and a read must first confirm the copy is current.</p>
   </div>
 
-  <h2>3. 缓存行状态模型</h2>
+  <h2>3. Cache-line state model</h2>
   <div class="card">
-    <p>ACE 把每条缓存行分为 5 个状态（不同于 MESI 的 4 态，ACE 明确区分 Unique 与 Shared、Clean 与 Dirty）：</p>
+    <p>ACE classifies each cache line into five states:</p>
     <table>
-      <tr><th>状态</th><th>含义</th><th>可否静默改</th><th>备注</th></tr>
-      <tr><td><code>I</code> (Invalid)</td><td>该行无效/不在缓存</td><td>—</td><td>读/写都要发起事务</td></tr>
-      <tr><td><code>UC</code> (Unique Clean)</td><td>全系统唯一副本，且与内存一致</td><td>✅</td><td>写可静默升级为 UD（不需通知互连）</td></tr>
-      <tr><td><code>UD</code> (Unique Dirty)</td><td>唯一副本，比内存新（脏）</td><td>✅</td><td>独占脏行，可静默写</td></tr>
-      <tr><td><code>SC</code> (Shared Clean)</td><td>多个副本，与内存一致</td><td>❌</td><td>写入前须先升级为 Unique</td></tr>
-      <tr><td><code>SD</code> (Shared Dirty)</td><td>多个副本，其中一个持有脏数据</td><td>❌</td><td>写前需回写+失效其他副本</td></tr>
+      <tr><th>State</th><th>Meaning</th><th>Silently modifiable</th></tr>
+      <tr><td><code>I</code> (Invalid)</td><td>Line absent / invalid</td><td>—</td></tr>
+      <tr><td><code>UC</code> (Unique Clean)</td><td>Only copy in the system, matches memory</td><td>Yes</td></tr>
+      <tr><td><code>UD</code> (Unique Dirty)</td><td>Only copy, newer than memory</td><td>Yes</td></tr>
+      <tr><td><code>SC</code> (Shared Clean)</td><td>Multiple copies, matches memory</td><td>No</td></tr>
+      <tr><td><code>SD</code> (Shared Dirty)</td><td>Multiple copies, one holds the dirty data</td><td>No</td></tr>
     </table>
-    <p>直觉：<b>Unique = 独占</b>（可静默修改）；<b>Shared = 共享</b>（修改前需通知其他副本）；<b>Dirty = 比内存新</b>（回写内存时需交出脏数据）。</p>
+    <p><b>Unique</b> means only one cache holds it (modifiable locally); <b>Shared</b> means others hold it too (must notify before modifying); <b>Dirty</b> means newer than memory (must hand over the data on eviction).</p>
   </div>
 
-  <h2>4. 两种实现机制：Snoop vs Directory</h2>
+  <h2>4. Two mechanisms: snoop vs directory</h2>
   <div class="card">
     <table>
-      <tr><th></th><th>Snoop（监听，ACE 采用）</th><th>Directory（目录，CHI Home 采用）</th></tr>
-      <tr><td>谁协调</td><td>互连把事务<b>广播/定向</b>给所有缓存主机</td><td>集中的 Home 节点记录每行的共享者目录</td></tr>
-      <tr><td>扩展性</td><td>适合中小规模（核数少，总线/交叉开关）</td><td>适合大规模（避免广播）</td></tr>
-      <tr><td>ACE 体现</td><td><code>AC</code> 通道发监听、<code>CR/CD</code> 回响应</td><td>（CHI 的 SNP 报文，非 ACE）</td></tr>
+      <tr><th></th><th>Snoop (used by ACE)</th><th>Directory (used by CHI Home)</th></tr>
+      <tr><td>Who coordinates</td><td>The interconnect broadcasts/directs a transaction to all cache masters</td><td>A central Home node tracks the sharer directory per line</td></tr>
+      <tr><td>Scalability</td><td>Suits small-to-medium systems</td><td>Suits large systems (no broadcast)</td></tr>
+      <tr><td>In ACE</td><td>Snoop on <code>AC</code>, reply on <code>CR/CD</code></td><td>CHI SNP messages, not ACE</td></tr>
     </table>
-    <p>ACE 属于 snoop 家族：互连（ICN）在收到一致性请求后，通过 <code>AC</code> 通道<b>向其他缓存主机发监听</b>，让它们失效/回写，从而把一行「收回」成 Unique 再交给请求者。</p>
+    <p>ACE is a snoop protocol: on a coherent request the interconnect issues snoops over <code>AC</code> to the other caches, making them invalidate or write back, so the line can be reclaimed as Unique and handed to the requester.</p>
   </div>
 
-  <h2>5. 屏障与域（Barrier / Domain）</h2>
+  <h2>5. Barriers and domains</h2>
   <div class="card">
-    <p>ACE 还定义了两种屏障事务：<code>MemoryBarrier</code>（保证屏障前的事务在屏障后的观测上全局可见）与 <code>SyncBarrier</code>（所有参与者的同步点）；并通过 <code>AWDOMAIN/ARDOMAIN</code> 把系统划分成「一致性域」，只有同域内才需要维持一致 —— 这也是 C910 这类多核簇接 SoC 时用到的边界概念。</p>
-  </div>
+    <p>ACE defines two barrier transactions: <code>MemoryBarrier</code> (transactions before the barrier become globally observable before those after it) and <code>SyncBarrier</code> (a synchronization point among all participants). The <code>AWDOMAIN/ARDOMAIN</code> signals partition the system into shareability domains, within which coherence is maintained.</p>
+  </div>`;
 
-  <div class="note"><b>相关内容</b>：状态模型与事务类型的联动，见 <a href="#/transactions">访问分类</a> 与 <a href="#/timing">时序图</a>。</div>`;
+  S.protocol = () => `<h1>Protocol</h1>
 
-  S.protocol = () => `<h1>协议内容</h1>
-  <p class="lead">ACE 在 AXI4 之上叠加一致性能力。首先理解「通道」这一基本单元与 VALID/READY 握手，进而理解事务如何跨多条通道展开。</p>
-
-  <h2>1. 通道（Channel）总览</h2>
+  <h2>1. Channel overview</h2>
   <div class="card">
-    <p>ACE 一共 8 条单向通道。前 5 条是 AXI4 本体，后 3 条是 ACE 新增的监听通道：</p>
+    <p>ACE has eight unidirectional channels — the five AXI4 channels plus the three snoop channels:</p>
     <table>
-      <tr><th>通道</th><th>方向</th><th>作用</th></tr>
-      <tr><td><code>AW</code> 写地址</td><td>主 → 互连</td><td>写事务的地址/属性（ACE 加 <code>AWSNOOP/AWDOMAIN/AWUNIQUE</code>）</td></tr>
-      <tr><td><code>W</code> 写数据</td><td>主 → 互连</td><td>写数据 + 字节选通 <code>WSTRB</code> + <code>WLAST</code></td></tr>
-      <tr><td><code>B</code> 写响应</td><td>互连 → 主</td><td>写完成响应（ACE 加 <code>WACK</code>）</td></tr>
-      <tr><td><code>AR</code> 读地址</td><td>主 → 互连</td><td>读事务的地址/属性（ACE 加 <code>ARSNOOP/ARDOMAIN</code>）</td></tr>
-      <tr><td><code>R</code> 读数据</td><td>互连 → 主</td><td>读数据 + 响应（ACE 加 <code>RACK</code>）</td></tr>
-      <tr><td><code>AC</code> 监听地址</td><td>互连 → 缓存主</td><td>一致性监听请求（<code>ACADDR/ACSNOOP/ACPROT</code>）</td></tr>
-      <tr><td><code>CR</code> 监听响应</td><td>缓存主 → 互连</td><td>监听结果（<code>CRRESP</code>）</td></tr>
-      <tr><td><code>CD</code> 监听数据</td><td>缓存主 → 互连</td><td>监听中交出的脏数据（<code>CDDATA/CDLAST</code>）</td></tr>
+      <tr><th>Channel</th><th>Direction</th><th>Purpose</th></tr>
+      <tr><td><code>AW</code> write address</td><td>master → interconnect</td><td>Write address/attributes (ACE adds <code>AWSNOOP/AWDOMAIN/AWUNIQUE</code>)</td></tr>
+      <tr><td><code>W</code> write data</td><td>master → interconnect</td><td>Write data + <code>WSTRB</code> + <code>WLAST</code></td></tr>
+      <tr><td><code>B</code> write response</td><td>interconnect → master</td><td>Write completion (ACE adds <code>WACK</code>)</td></tr>
+      <tr><td><code>AR</code> read address</td><td>master → interconnect</td><td>Read address/attributes (ACE adds <code>ARSNOOP/ARDOMAIN</code>)</td></tr>
+      <tr><td><code>R</code> read data</td><td>interconnect → master</td><td>Read data + response (ACE adds <code>RACK</code>)</td></tr>
+      <tr><td><code>AC</code> snoop address</td><td>interconnect → cache</td><td>Snoop request (<code>ACADDR/ACSNOOP/ACPROT</code>)</td></tr>
+      <tr><td><code>CR</code> snoop response</td><td>cache → interconnect</td><td>Snoop result (<code>CRRESP</code>)</td></tr>
+      <tr><td><code>CD</code> snoop data</td><td>cache → interconnect</td><td>Dirty line returned during a snoop (<code>CDDATA/CDLAST</code>)</td></tr>
     </table>
-    <p>助记：<b>AW/W/B</b> 构成写通路，<b>AR/R</b> 构成读通路，<b>AC/CR/CD</b> 构成监听通路 —— 监听请求由互连经 AC 发往主设备，主设备经 CR 返回结果、经 CD 返回脏数据。</p>
+    <p><b>AW/W/B</b> form the write path, <b>AR/R</b> the read path, <b>AC/CR/CD</b> the snoop path — a snoop enters the master over AC, and the master returns the result over CR and the dirty data over CD.</p>
   </div>
 
-  <h2>2. VALID / READY 握手</h2>
+  <h2>2. VALID / READY handshake</h2>
   <div class="card">
-    <p>每条通道用 <code>VALID</code>（发送方有数据）与 <code>READY</code>（接收方能收）握手。数据在 <b>VALID 与 READY 同时为高的时钟沿</b>传输，双方可各自等待，不阻塞。</p>
-    <p>两条基本规则：</p>
+    <p>Each channel uses <code>VALID</code> (sender has data) and <code>READY</code> (receiver can accept). A transfer occurs on the clock edge where both are high; either side may wait independently.</p>
     <ul>
-      <li>发送方<b>不得</b>在 VALID 拉高后等待 READY 时改变数据（保持稳定直到握手完成）。</li>
-      <li>VALD 一旦拉高<b>必须保持到握手完成</b>；READY 可以随时拉高/拉低（甚至可以不等 VALID）。</li>
+      <li>The sender must not change the payload while <code>VALID</code> is high and it is waiting for <code>READY</code>.</li>
+      <li>Once <code>VALID</code> is asserted it must stay asserted until the handshake completes; <code>READY</code> may be asserted or deasserted at any time.</li>
     </ul>
-    <p>事务级：一个<b>突发（burst）</b>由 1 条地址握手 + N 次数据握手（N=AXLEN+1）组成，写以 <code>WLAST</code> 标记末拍，读以 <code>RLAST</code> 标记。</p>
+    <p>At transaction level, a burst consists of one address handshake plus <code>AXLEN+1</code> data beats, the last marked by <code>WLAST</code> (write) or <code>RLAST</code> (read).</p>
   </div>
 
-  <h2>3. 一个事务如何跨通道展开</h2>
+  <h2>3. How a transaction spans channels</h2>
   <div class="card">
-    <p>写事务：<code>AW</code> 地址 →（可重叠）<code>W</code> 数据 → <code>B</code> 完成响应。<br>读事务：<code>AR</code> 地址 → <code>R</code> 数据（末拍带 <code>RLAST</code>）。<br>一致性事务：在上述读写之上，互连通过 <code>AC</code> 发监听、主设备经 <code>CR/CD</code> 响应 —— 三者时序上可与数据通道<b>并行流水</b>（例如 WriteUnique 的监听和 W 数据可以同时进行）。</p>
-    <p>ACE 的关键增强信号：</p>
+    <p>Write: <code>AW</code> address → <code>W</code> data (may overlap) → <code>B</code> response.<br>Read: <code>AR</code> address → <code>R</code> data (last beat with <code>RLAST</code>).<br>Coherent transactions add: the interconnect snoops on <code>AC</code> and the cache replies on <code>CR/CD</code>, in parallel with the data channels.</p>
     <ul>
-      <li><code>AWSNOOP / ARSNOOP</code>：本次事务是否一致、以及是哪种一致性类型（决定互连要不要发监听）。</li>
-      <li><code>RACK / WACK</code>：分别指示「读事务的读响应已可安全释放」「写事务的写响应已可安全释放」—— 给一致性事务一个<b>独立的完成握手点</b>，允许后续事务超前流水。</li>
-      <li><code>AWDOMAIN / ARDOMAIN / AC...</code>：域与屏障，见<a href="#/signals">信号解释</a>。</li>
+      <li><code>AWSNOOP / ARSNOOP</code>: whether the transaction is coherent, and of which type.</li>
+      <li><code>RACK / WACK</code>: a separate completion handshake telling the interconnect the transaction state may be retired.</li>
+      <li><code>AWDOMAIN / ARDOMAIN</code>: shareability domains.</li>
     </ul>
   </div>
 
-  <h2>4. 事务 ID 与乱序</h2>
+  <h2>4. Transaction IDs and ordering</h2>
   <div class="card">
-    <p>同一主机可挂多个未完成事务，靠 <code>AWID/ARID/WID</code> 区分；互连对<b>不同 ID</b> 的事务可乱序返回 <code>B/R</code>，对<b>同 ID</b> 必须按序。ACE 的监听事务用 <code>AC</code> 通道自身的寻址与协议标识区分，不与主机的读写 ID 混淆。</p>
-  </div>
+    <p>A master may have several outstanding transactions distinguished by <code>AWID/ARID</code>. The interconnect may return <code>B/R</code> out of order for different IDs but must preserve order within the same ID. Snoops are identified by the AC channel addressing, independent of the master's read/write IDs.</p>
+  </div>`;
 
-  <div class="note"><b>下一节</b>：逐信号逐位的精确定义见 <a href="#/signals">信号解释</a>。</div>`;
+  S.signals = () => `<h1>Signals</h1>
+  <p>Per-channel, per-signal. The prefix <code>AW/W/B/AR/R/AC/CR/CD</code> names the channel; <code>xVALID/xREADY</code> are the handshakes. This page follows <b>AMBA 4 ACE</b>.</p>
 
-  S.signals = () => `<h1>信号解释</h1>
-  <p class="lead">逐通道、逐信号。ACE = AXI4 基础信号 + 一致性增强信号。前缀 <code>AW/W/B/AR/R/AC/CR/CD</code> 对应通道，<code>xVALID/xREADY</code> 为各通道握手。（本表按 <b>AMBA 4 ACE</b>，AMBA 5 的差异见<a href="#/transactions">访问分类</a>末尾说明。）</p>
-
-  <h2>1. AXI4 基础通道</h2>
+  <h2>1. AXI4 base channels</h2>
   <div class="card">
     <table>
-      <tr><th>通道</th><th>关键信号</th><th>含义</th></tr>
-      <tr><td><code>AW</code> 写地址</td><td><code>AWVALID/AWREADY/AWID/AWADDR/AWLEN/AWSIZE/AWBURST/AWLOCK/AWCACHE/AWPROT/AWQOS</code></td><td>写事务地址与属性；AWLEN 突发长度、AWSIZE 每拍字节数</td></tr>
-      <tr><td><code>W</code> 写数据</td><td><code>WVALID/WREADY/WDATA/WSTRB/WLAST</code></td><td>写数据 + 字节选通 WSTRB（每 bit 对应一字节）+ 末拍 WLAST</td></tr>
-      <tr><td><code>B</code> 写响应</td><td><code>BVALID/BREADY/BID/BRESP[1:0]</code></td><td>写完成；BRESP=OKAY/EXOKAY/SLVERR/DECERR</td></tr>
-      <tr><td><code>AR</code> 读地址</td><td><code>ARVALID/ARREADY/ARID/ARADDR/ARLEN/ARSIZE/ARBURST/ARLOCK/ARCACHE/ARPROT/ARQOS</code></td><td>读事务地址与属性</td></tr>
-      <tr><td><code>R</code> 读数据</td><td><code>RVALID/RREADY/RID/RDATA/RRESP/RLAST</code></td><td>读数据 + 响应；RLAST 标末拍</td></tr>
+      <tr><th>Channel</th><th>Key signals</th><th>Meaning</th></tr>
+      <tr><td><code>AW</code></td><td><code>AWVALID/AWREADY/AWID/AWADDR/AWLEN/AWSIZE/AWBURST/AWLOCK/AWCACHE/AWPROT/AWQOS</code></td><td>Write address and attributes; AWLEN = burst length, AWSIZE = bytes per beat</td></tr>
+      <tr><td><code>W</code></td><td><code>WVALID/WREADY/WDATA/WSTRB/WLAST</code></td><td>Write data + WSTRB byte strobes + WLAST last beat</td></tr>
+      <tr><td><code>B</code></td><td><code>BVALID/BREADY/BID/BRESP[1:0]</code></td><td>Write completion; BRESP = OKAY/EXOKAY/SLVERR/DECERR</td></tr>
+      <tr><td><code>AR</code></td><td><code>ARVALID/ARREADY/ARID/ARADDR/ARLEN/ARSIZE/ARBURST/ARLOCK/ARCACHE/ARPROT/ARQOS</code></td><td>Read address and attributes</td></tr>
+      <tr><td><code>R</code></td><td><code>RVALID/RREADY/RID/RDATA/RRESP/RLAST</code></td><td>Read data + response; RLAST marks the last beat</td></tr>
     </table>
   </div>
 
-  <h2>2. ACE 一致性增强信号（核心）</h2>
+  <h2>2. ACE coherence-extension signals</h2>
   <div class="card">
     <table>
-      <tr><th>信号</th><th>通道</th><th>位宽</th><th>含义</th></tr>
-      <tr><td><code>AWSNOOP</code></td><td>AW</td><td>3b</td><td>本次写的一致性类型（WriteNoSnoop/WriteUnique/WriteLineUnique/WriteBack/WriteClean）</td></tr>
-      <tr><td><code>AWUNIQUE</code></td><td>AW</td><td>1b</td><td>对 WriteLineUnique：=1 表示本端已是唯一副本，互连可免于监听</td></tr>
-      <tr><td><code>AWDOMAIN</code></td><td>AW</td><td>2b</td><td>写所属一致性域（0b00 Non-shareable / 0b01 Inner / 0b10 Outer / 0b11 System）</td></tr>
-      <tr><td><code>ARSNOOP</code></td><td>AR</td><td>4b</td><td>本次读的一致性类型（ReadNoSnoop/ReadOnce…/ReadUnique/CleanInvalid/MakeInvalid/CleanShared/MakeUnique 等，见<a href="#/transactions">访问分类</a>）</td></tr>
-      <tr><td><code>ARDOMAIN</code></td><td>AR</td><td>2b</td><td>读所属一致性域</td></tr>
-      <tr><td><code>RACK</code></td><td>R</td><td>1b</td><td>读型事务完成握手：主设备在接收末拍 RLAST 后下一拍拉高（读/Clean/Make/屏障事务以此收尾）</td></tr>
-      <tr><td><code>WACK</code></td><td>B</td><td>1b</td><td>写型事务完成握手：主设备在接收写响应 B 后下一拍拉高（写/Evict 事务以此收尾）</td></tr>
-      <tr><td><code>RRESP</code></td><td>R</td><td>4b</td><td>读响应；ACE 扩到 4 位：<code>RRESP[2]=PassDirty</code>、<code>RRESP[3]=IsShared</code>，告诉请求方按 Unique 还是 Shared 分配；低 2 位仍是标准 AXI 响应</td></tr>
+      <tr><th>Signal</th><th>Channel</th><th>Width</th><th>Meaning</th></tr>
+      <tr><td><code>AWSNOOP</code></td><td>AW</td><td>3b</td><td>Coherent write type (WriteNoSnoop/WriteUnique/WriteLineUnique/WriteBack/WriteClean)</td></tr>
+      <tr><td><code>AWUNIQUE</code></td><td>AW</td><td>1b</td><td>For WriteLineUnique: =1 means already Unique, the snoop may be skipped</td></tr>
+      <tr><td><code>AWDOMAIN</code></td><td>AW</td><td>2b</td><td>Shareability domain (0b00 Non-shareable / 0b01 Inner / 0b10 Outer / 0b11 System)</td></tr>
+      <tr><td><code>ARSNOOP</code></td><td>AR</td><td>4b</td><td>Coherent read type</td></tr>
+      <tr><td><code>ARDOMAIN</code></td><td>AR</td><td>2b</td><td>Read shareability domain</td></tr>
+      <tr><td><code>RACK</code></td><td>R</td><td>1b</td><td>Read-type completion: asserted the cycle after the master accepts the last beat (RLAST)</td></tr>
+      <tr><td><code>WACK</code></td><td>B</td><td>1b</td><td>Write-type completion: asserted the cycle after the master accepts the write response</td></tr>
+      <tr><td><code>RRESP</code></td><td>R</td><td>4b</td><td>Read response widened by ACE to 4 bits: <code>RRESP[2]=PassDirty</code>, <code>RRESP[3]=IsShared</code>; the low two bits remain the standard AXI response</td></tr>
     </table>
-    <p><b>RACK/WACK 是「完成确认」而非额外数据</b>：互连靠它们回收事务状态，必须纯由通道握手产生（不能有内部停顿），否则会死锁 —— 这是 ACE 防死锁的一条硬规则。</p>
+    <p><b>RACK/WACK are completion acknowledgements, not extra data.</b> The interconnect relies on them to retire transaction state, and they must be produced purely from channel handshakes (no internal stalls), otherwise the system deadlocks.</p>
   </div>
 
-  <h2>3. 监听三通道（AC / CR / CD）</h2>
+  <h2>3. Snoop channels (AC / CR / CD)</h2>
   <div class="card">
     <table>
-      <tr><th>信号</th><th>通道</th><th>位宽</th><th>含义</th></tr>
-      <tr><td><code>ACVALID/ACREADY</code></td><td>AC</td><td>1b</td><td>监听地址握手（互连 → 缓存）</td></tr>
-      <tr><td><code>ACADDR</code></td><td>AC</td><td>addr</td><td>被监听地址</td></tr>
-      <tr><td><code>ACSNOOP</code></td><td>AC</td><td>4b</td><td>监听命令 —— 复用 ARSNOOP 的 4 位编码空间（ReadOnce/ReadClean/ReadShared/CleanShared/MakeUnique/ReadNotSharedDirty/ReadUnique/CleanInvalid/MakeInvalid 等）</td></tr>
-      <tr><td><code>ACPROT</code></td><td>AC</td><td>3b</td><td>保护属性</td></tr>
-      <tr><td><code>CRVALID/CRREADY</code></td><td>CR</td><td>1b</td><td>监听响应握手（缓存 → 互连）</td></tr>
-      <tr><td><code>CRRESP</code></td><td>CR</td><td>5b</td><td>监听结果，按位域表示：<code>ERROR / PASSDIRTY / ISSHARED / WASUNIQUE</code>（具体位序以 IHI 0022 为准）—— PASSDIRTY=1 表示本缓存是唯一脏副本</td></tr>
-      <tr><td><code>CDVALID/CDREADY</code></td><td>CD</td><td>1b</td><td>监听数据握手</td></tr>
-      <tr><td><code>CDDATA</code></td><td>CD</td><td>data</td><td>交出的脏缓存行数据</td></tr>
-      <tr><td><code>CDLAST</code></td><td>CD</td><td>1b</td><td>脏数据末拍</td></tr>
+      <tr><th>Signal</th><th>Channel</th><th>Width</th><th>Meaning</th></tr>
+      <tr><td><code>ACVALID/ACREADY</code></td><td>AC</td><td>1b</td><td>Snoop address handshake (interconnect → cache)</td></tr>
+      <tr><td><code>ACADDR</code></td><td>AC</td><td>addr</td><td>Address being snooped</td></tr>
+      <tr><td><code>ACSNOOP</code></td><td>AC</td><td>4b</td><td>Snoop command — reuses the 4-bit ARSNOOP opcode space</td></tr>
+      <tr><td><code>ACPROT</code></td><td>AC</td><td>3b</td><td>Protection attributes</td></tr>
+      <tr><td><code>CRVALID/CRREADY</code></td><td>CR</td><td>1b</td><td>Snoop response handshake (cache → interconnect)</td></tr>
+      <tr><td><code>CRRESP</code></td><td>CR</td><td>5b</td><td>Snoop result, fields <code>ERROR / PASSDIRTY / ISSHARED / WASUNIQUE</code> (bit positions per IHI 0022)</td></tr>
+      <tr><td><code>CDVALID/CDREADY</code></td><td>CD</td><td>1b</td><td>Snoop data handshake</td></tr>
+      <tr><td><code>CDDATA</code></td><td>CD</td><td>data</td><td>Dirty line returned during a snoop</td></tr>
+      <tr><td><code>CDLAST</code></td><td>CD</td><td>1b</td><td>Last beat of the dirty data</td></tr>
     </table>
   </div>
 
-  <h2>4. 屏障与低功耗（不是「BAR 信号线」）</h2>
+  <h2>4. Barriers and the low-power channel</h2>
   <div class="card">
-    <p><b>注意</b>：ACE 的 <code>MemoryBarrier</code> / <code>SyncBarrier</code> 是<b>事务类型</b>（在 AR/AW 上发起），<b>没有 AWBAR/ARBAR 这种专用信号线</b>（网上部分简图写的 ARBAR/AWBAR 不是标准 ACE 信号）。AMBA 5 已移除屏障事务编码。</p>
-    <p><b>低功耗 C-channel（ACE-Lite）</b>：<code>CACTIVE</code>（主设备有无未完成事务）、<code>CSYSREQ</code>（系统请求进入/退出低功耗）、<code>CSYSACK</code>（主设备确认）。C910 的 <code>biu_pad_cactive / pad_biu_csysreq / biu_pad_csysack</code> 即此通道 —— 它是电源门控握手，不是一致性。</p>
-  </div>
+    <p><code>MemoryBarrier</code> / <code>SyncBarrier</code> are <b>transaction types</b> issued on AR/AW — there is <b>no dedicated AWBAR/ARBAR signal</b>. AMBA 5 has removed the barrier transaction encodings.</p>
+    <p><b>Low-power C-channel (ACE-Lite):</b> <code>CACTIVE</code> (master has outstanding transactions), <code>CSYSREQ</code> (system requests entry/exit of low power), <code>CSYSACK</code> (master acknowledges). On the C910 these are <code>biu_pad_cactive / pad_biu_csysreq / biu_pad_csysack</code>.</p>
+  </div>`;
 
-  <div class="note"><b>小结</b>：一致性读写看 <code>AWSNOOP/ARSNOOP</code>（事务「想要什么一致性结果」）；互连据此在 <code>AC</code> 发监听、缓存经 <code>CR/CD</code> 回结果；<code>RACK/WACK</code> 是「资源可释放」的独立完成握手。</div>`;
+  S.transactions = () => `<h1>Transactions</h1>
+  <p>Three classes — coherent reads (ARSNOOP), coherent writes (AWSNOOP), snoop commands (ACSNOOP) — plus two barrier types. The encodings below are <b>AMBA 4 ACE</b>.</p>
 
-  S.transactions = () => `<h1>访问分类</h1>
-  <p class="lead">ACE 的事务按「<b>谁发起、要什么一致性结果</b>」分三类：一致性读（ARSNOOP）、一致性写（AWSNOOP）、监听事务（ACSNOOP），外加两类屏障。<b>以下编码为 AMBA 4 ACE</b>（AMBA 5 的改动见末尾说明）。</p>
-
-  <h2>1. 一致性读（ARSNOOP，4 位）</h2>
+  <h2>1. Coherent reads (ARSNOOP, 4 bits)</h2>
   <div class="card">
     <table>
-      <tr><th>值</th><th>事务</th><th>含义</th></tr>
-      <tr><td>0b0000</td><td><code>ReadNoSnoop</code></td><td>非一致读（Non-shareable/System），不做监听</td></tr>
-      <tr><td>0b0001</td><td><code>ReadOnceCleanInvalid</code></td><td>只读一次；其他副本建议清理+失效</td></tr>
-      <tr><td>0b0100</td><td><code>ReadOnce</code></td><td>只读一次，不分配进缓存</td></tr>
-      <tr><td>0b0101</td><td><code>ReadOnceMakeInvalid</code></td><td>只读一次；其他副本直接失效（不回写）</td></tr>
-      <tr><td>0b1000</td><td><code>ReadClean</code></td><td>行填充，返回的数据必须干净（脏数据回写内存）</td></tr>
-      <tr><td>0b1001</td><td><code>ReadShared</code></td><td>行填充，可返回脏数据，分配为 Shared</td></tr>
-      <tr><td>0b1010</td><td><code>CleanShared</code></td><td>缓存维护（CMO）：清理所有副本，无数据</td></tr>
-      <tr><td>0b1011</td><td><code>MakeUnique</code></td><td>使其他副本失效、本端独占（无数据返回）</td></tr>
-      <tr><td>0b1100</td><td><code>ReadNotSharedDirty</code></td><td>行填充，请求方不得以 Shared-Dirty 结束</td></tr>
-      <tr><td>0b1101</td><td><code>ReadUnique</code></td><td>行填充并分配为 <b>Unique</b>（为后续写操作做准备）</td></tr>
-      <tr><td>0b1110</td><td><code>CleanInvalid</code></td><td>CMO：清理 + 失效所有副本</td></tr>
-      <tr><td>0b1111</td><td><code>MakeInvalid</code></td><td>CMO：失效所有副本（脏数据无需回写）</td></tr>
+      <tr><th>Value</th><th>Transaction</th><th>Meaning</th></tr>
+      <tr><td>0b0000</td><td><code>ReadNoSnoop</code></td><td>Non-coherent read; no snoop</td></tr>
+      <tr><td>0b0001</td><td><code>ReadOnceCleanInvalid</code></td><td>Read-once; other copies clean+invalidate</td></tr>
+      <tr><td>0b0100</td><td><code>ReadOnce</code></td><td>Read-once, not allocated</td></tr>
+      <tr><td>0b0101</td><td><code>ReadOnceMakeInvalid</code></td><td>Read-once; other copies invalidated without writeback</td></tr>
+      <tr><td>0b1000</td><td><code>ReadClean</code></td><td>Linefill; data must not be dirty</td></tr>
+      <tr><td>0b1001</td><td><code>ReadShared</code></td><td>Linefill, allocating Shared</td></tr>
+      <tr><td>0b1010</td><td><code>CleanShared</code></td><td>CMO: clean all copies, data-less</td></tr>
+      <tr><td>0b1011</td><td><code>MakeUnique</code></td><td>Invalidate others; requester owns the line, data-less</td></tr>
+      <tr><td>0b1100</td><td><code>ReadNotSharedDirty</code></td><td>Linefill; requester must not end Shared-Dirty</td></tr>
+      <tr><td>0b1101</td><td><code>ReadUnique</code></td><td>Linefill allocating Unique (prepares a store)</td></tr>
+      <tr><td>0b1110</td><td><code>CleanInvalid</code></td><td>CMO: clean + invalidate all copies</td></tr>
+      <tr><td>0b1111</td><td><code>MakeInvalid</code></td><td>CMO: invalidate all copies</td></tr>
     </table>
-    <p>规律：<b>00xx = ReadOnce 族（可免于监听）→ 10xx = Read/Clean/Make 族（要监听）→ 11xx = Unique/Invalid 族（要独占/要失效）</b>。</p>
+    <p><b>00xx = ReadOnce family (may skip the snoop) → 10xx = Read/Clean/Make family (snoop) → 11xx = Unique/Invalid family (exclusive / invalidate)</b>.</p>
   </div>
 
-  <h2>2. 一致性写（AWSNOOP，3 位）</h2>
+  <h2>2. Coherent writes (AWSNOOP, 3 bits)</h2>
   <div class="card">
     <table>
-      <tr><th>值</th><th>事务</th><th>含义</th></tr>
-      <tr><td>0b000</td><td><code>WriteNoSnoop</code></td><td>非一致写（写内存）</td></tr>
-      <tr><td>0b001</td><td><code>WriteUnique</code></td><td>对<b>不持有</b>的 Shareable 行做一致写，<b>写穿/不分配</b>；互连监听使其他副本失效并合并脏数据（本站 <a href="#/writeunique">WriteUnique</a> 重点介绍）</td></tr>
-      <tr><td>0b010</td><td><code>WriteLineUnique</code></td><td><b>整行</b>一致写，把该行分配为 <b>Unique</b>；<code>AWUNIQUE=1</code> 表示本端已是唯一副本，可免于监听</td></tr>
-      <tr><td>0b011</td><td><code>WriteBack</code></td><td>淘汰<b>脏</b> Shareable 行，回写内存</td></tr>
-      <tr><td>0b100</td><td><code>WriteClean</code></td><td>清理<b>干净</b> Shareable 行（无数据出）</td></tr>
+      <tr><th>Value</th><th>Transaction</th><th>Meaning</th></tr>
+      <tr><td>0b000</td><td><code>WriteNoSnoop</code></td><td>Non-coherent write</td></tr>
+      <tr><td>0b001</td><td><code>WriteUnique</code></td><td>Coherent write to a Shareable line the requester does not hold; write-through / no-allocate; the interconnect snoops and merges dirty data</td></tr>
+      <tr><td>0b010</td><td><code>WriteLineUnique</code></td><td><b>Full-line</b> coherent write that allocates the line Unique; <code>AWUNIQUE=1</code> skips the snoop</td></tr>
+      <tr><td>0b011</td><td><code>WriteBack</code></td><td>Evicting a <b>Dirty</b> Shareable line</td></tr>
+      <tr><td>0b100</td><td><code>WriteClean</code></td><td>Cleaning a <b>Clean</b> Shareable line</td></tr>
     </table>
-    <p>AMBA 5 更名：<code>WriteUnique → WriteUniquePtl</code>、<code>WriteLineUnique → WriteUniqueFull</code>（与 CHI 命名对齐）。</p>
+    <p>AMBA 5 rename: <code>WriteUnique → WriteUniquePtl</code>, <code>WriteLineUnique → WriteUniqueFull</code>.</p>
   </div>
 
-  <h2>3. 监听命令（ACSNOOP，4 位）</h2>
+  <h2>3. Snoop commands (ACSNOOP, 4 bits)</h2>
   <div class="card">
-    <p><b>ACSNOOP 复用 ARSNOOP 的 4 位编码空间</b>（互连向缓存发监听时，用同一套读/清/失效命令码，但语义是「对被监听缓存下命令」）。常用监听命令：</p>
+    <p><b>ACSNOOP reuses the ARSNOOP 4-bit opcode space</b> (the interconnect issues a snoop using the same read/clean/invalidate opcodes, but with command semantics toward the snooped cache):</p>
     <table>
-      <tr><th>值</th><th>监听命令</th><th>被监听缓存要做什么</th></tr>
-      <tr><td>0b0100</td><td><code>ReadOnce</code></td><td>交出数据（若有）</td></tr>
-      <tr><td>0b0001 / 0b0101</td><td><code>ReadOnceCleanInvalid / ReadOnceMakeInvalid</code></td><td>交出数据并清理/失效</td></tr>
-      <tr><td>0b1000</td><td><code>ReadClean</code></td><td>交出数据，行变 Clean</td></tr>
-      <tr><td>0b1001</td><td><code>ReadShared</code></td><td>交出数据，行变 Shared</td></tr>
-      <tr><td>0b1010</td><td><code>CleanShared</code></td><td>交出数据，保持 Shared</td></tr>
-      <tr><td>0b1011</td><td><code>MakeUnique</code></td><td>失效该行；若为脏，经 CD 返回数据，使请求方取得 Unique</td></tr>
-      <tr><td>0b1100</td><td><code>ReadNotSharedDirty</code></td><td>交出数据但不交给请求方共享</td></tr>
-      <tr><td>0b1101</td><td><code>ReadUnique</code></td><td>交出数据，失效，使请求方 Unique</td></tr>
-      <tr><td>0b1110</td><td><code>CleanInvalid</code></td><td>失效该行（干净，无需数据）</td></tr>
-      <tr><td>0b1111</td><td><code>MakeInvalid</code></td><td>失效该行；脏则经 CD 交出</td></tr>
+      <tr><th>Value</th><th>Snoop command</th><th>What the snooped cache must do</th></tr>
+      <tr><td>0b0100</td><td><code>ReadOnce</code></td><td>Return data if present</td></tr>
+      <tr><td>0b0001 / 0b0101</td><td><code>ReadOnceCleanInvalid / ReadOnceMakeInvalid</code></td><td>Return data and clean/invalidate</td></tr>
+      <tr><td>0b1000</td><td><code>ReadClean</code></td><td>Return data, line becomes Clean</td></tr>
+      <tr><td>0b1001</td><td><code>ReadShared</code></td><td>Return data, line becomes Shared</td></tr>
+      <tr><td>0b1010</td><td><code>CleanShared</code></td><td>Return data, keep Shared</td></tr>
+      <tr><td>0b1011</td><td><code>MakeUnique</code></td><td>Invalidate; return dirty data; requester becomes Unique</td></tr>
+      <tr><td>0b1100</td><td><code>ReadNotSharedDirty</code></td><td>Return data but do not share with the requester</td></tr>
+      <tr><td>0b1101</td><td><code>ReadUnique</code></td><td>Return data, invalidate; requester becomes Unique</td></tr>
+      <tr><td>0b1110</td><td><code>CleanInvalid</code></td><td>Invalidate the line (clean, no data)</td></tr>
+      <tr><td>0b1111</td><td><code>MakeInvalid</code></td><td>Invalidate; return dirty data on CD</td></tr>
     </table>
-    <p>主设备发 <code>ReadUnique</code>，互连就向其他缓存发 <code>MakeInvalid</code>/<code>MakeUnique</code> 监听；发 <code>WriteUnique</code> 同理 —— 读写的「意图」与监听的「命令」成对。</p>
   </div>
 
-  <h2>4. 屏障（Barrier）</h2>
+  <h2>4. Barriers</h2>
   <div class="card">
     <table>
-      <tr><th>事务</th><th>载体</th><th>含义</th></tr>
-      <tr><td><code>MemoryBarrier</code></td><td>AR/AW 上的事务类型</td><td>屏障前的事务须在屏障后事务被观测前全局可见（保序）</td></tr>
-      <tr><td><code>SyncBarrier</code></td><td>AR/AW 上的事务类型</td><td>所有参与主设备的同步点（更强）</td></tr>
+      <tr><th>Transaction</th><th>Carried on</th><th>Meaning</th></tr>
+      <tr><td><code>MemoryBarrier</code></td><td>Transaction type on AR/AW</td><td>Transactions before the barrier become observable before those after it</td></tr>
+      <tr><td><code>SyncBarrier</code></td><td>Transaction type on AR/AW</td><td>A synchronization point across all participating masters</td></tr>
     </table>
-    <p>屏障<b>不是</b>通过 ARBAR/AWBAR 专用信号线携带；AMBA 5 已移除 ACE 屏障事务编码。</p>
+    <p>Barriers are <b>not</b> carried on dedicated ARBAR/AWBAR wires; AMBA 5 removed them.</p>
   </div>
 
-  <h2>AMBA 4 与 AMBA 5 的版本差异</h2>
+  <h2>AMBA 4 vs AMBA 5</h2>
   <div class="card">
-    <p>现行 AMBA AXI 规范（IHI 0022 <b>Issue L</b>，2025-08）是 AMBA 5，它<b>重排了读事务编码</b>（ReadShared 移到 0b0001、ReadClean 0b0010 等）并<b>移除了屏障事务</b>。本页按经典 <b>AMBA 4 ACE</b> 讲解（WriteUnique/WriteBack/ReadUnique 等命名均源于此）；如需对照最新规范，请以 IHI 0022 原文为准。</p>
-  </div>
+    <p>The current AMBA AXI specification (IHI 0022 <b>Issue L</b>, Aug 2025) is AMBA 5, which <b>re-encoded the read opcodes</b> (ReadShared moved to 0b0001, ReadClean to 0b0010) and <b>removed the barrier transactions</b>. This page follows classic <b>AMBA 4 ACE</b>.</p>
+  </div>`;
 
-  <div class="note"><b>依据</b>：编码表参照 ARM IHI 0022（AMBA AXI/ACE 规范）与 ARM DynamIQ/Cortex-A35 TRM 的信号位宽；ACSNoop 单独枚举与 CRRESP 位序在规范 Snoop 章节，建议引用前再核对一遍。</div>`;
+  S.timing = () => `<h1>Timing</h1>
+  <p>Each transaction is "request → (snoop) → data → response/completion". Participants: requester RN, interconnect ICN, peer cache, and memory.</p>
 
-  S.timing = () => `<h1>事务时序图</h1>
-  <p class="lead">每个事务都是「请求 →（可能监听）→ 数据 → 响应/完成」的流程。以下按访问类型给出时序图，参与者为：请求者 RN、互连 ICN、对端缓存 Peer、内存 MEM。</p>
-
-  <h2>1. ReadUnique（读取并取得独占权，为读-改-写做准备）</h2>
+  <h2>1. ReadUnique (read and take ownership)</h2>
   <div class="card">
     <div class="diagram">${seqSVG(
       ["RN","ICN","Peer","MEM"],
       [
         [0,1,"AR: ReadUnique","ARSNOOP=ReadUnique, ARADDR"],
         [1,2,"Snoop: MakeInvalid","ACSNOOP=MakeInvalid"],
-        [2,1,"Snoop resp","CRRESP=PassClean / PassDirty (CD if dirty)"],
-        [1,0,"R: data + RACK","RRESP=EXOKAY, RACK=1 → RN owns Unique"]
+        [2,1,"Snoop resp","CRRESP (CD if dirty)"],
+        [1,0,"R: data + RACK","RRESP, RACK=1 → RN owns Unique"]
       ],
-      { title:"ReadUnique — 读并独占（miss 且需使对端失效）", h:330, w:820 }
+      { title:"ReadUnique — read and take ownership (miss, invalidate peer)", h:330, w:820 }
     )}</div>
   </div>
 
-  <h2>2. ReadShared（读共享，miss）</h2>
+  <h2>2. ReadShared (read, keep shared)</h2>
   <div class="card">
     <div class="diagram">${seqSVG(
       ["RN","ICN","Peer","MEM"],
       [
         [0,1,"AR: ReadShared","ARSNOOP=ReadShared, ARADDR"],
         [1,2,"Snoop: ReadClean","ACSNOOP=ReadClean"],
-        [2,1,"Snoop resp","CRRESP=PassDirty/PassClean (CD if dirty)"],
-        [1,0,"R: data","RRESP=OKAY, RACK → RN keeps Shared"]
+        [2,1,"Snoop resp","CRRESP (CD if dirty)"],
+        [1,0,"R: data","RRESP, RACK → RN keeps Shared"]
       ],
-      { title:"ReadShared — 读共享（对端可保留 Shared 副本）", h:330, w:820 }
+      { title:"ReadShared — read, peer may retain a Shared copy", h:330, w:820 }
     )}</div>
   </div>
 
-  <h2>3. WriteUnique（独占写，本站重点）</h2>
+  <h2>3. WriteUnique (exclusive write)</h2>
   <div class="card">
     <div class="diagram">${writeUniqueSVG()}</div>
-    <p>详细步骤见 <a href="#/writeunique">WriteUnique 事务流程</a>。</p>
+    <p>Step-by-step under <a href="#/writeunique">WriteUnique</a>.</p>
   </div>
 
-  <h2>4. WriteBack / WriteClean（回写数据，无监听）</h2>
+  <h2>4. WriteBack / WriteClean (write back, no snoop)</h2>
   <div class="card">
     <div class="diagram">${seqSVG(
       ["RN (cache)","ICN","MEM",""],
       [
-        [0,1,"AW: WriteBack/WriteClean","AWSNOOP=WriteBack 或 WriteClean"],
-        [0,1,"W: data","WLAST 末拍"],
-        [1,2,"WriteNoSnoop","写内存"],
+        [0,1,"AW: WriteBack/WriteClean","AWSNOOP=WriteBack or WriteClean"],
+        [0,1,"W: data","WLAST last beat"],
+        [1,2,"WriteNoSnoop","write to memory"],
         [2,1,"B: BRESP","BRESP=OKAY"],
-        [1,0,"B + WACK","WACK=1 → 完成（WriteBack 后行被丢弃，WriteClean 后保留为 Clean）"]
+        [1,0,"B + WACK","WACK=1 → complete"]
       ],
-      { title:"WriteBack / WriteClean — 脏行回写，无监听", h:400, w:760 }
+      { title:"WriteBack / WriteClean — dirty-line writeback, no snoop", h:400, w:760 }
     )}</div>
   </div>
 
-  <h2>5. 读/写握手的「波形」视角</h2>
+  <h2>5. The waveform view of VALID/READY</h2>
   <div class="card">
-    <p>时序图是「参与者视角」，而 RTL 里看到的是<b>时钟沿上的 VALID/READY 波形</b>。规则（贯穿所有 ACE 通道）：</p>
     <ul>
-      <li>数据只在 <code>VALID && READY</code> 同时为 1 的上升沿传输。</li>
-      <li><code>VALID</code> 一旦拉高必须保持到握手完成；<code>READY</code> 可随时变化。</li>
-      <li>读数据 <code>RDATA</code> 与 <code>RVALID</code> 同步；写数据 <code>WDATA/WSTRB</code> 与 <code>WVALID</code> 同步；<code>WLAST</code> 标末拍。</li>
-      <li>一致性监听（AC/CR/CD）与数据通道<b>可并行</b>，这正是 WriteUnique 里「监听 + 写数据同时进行」的来源。</li>
+      <li>Data transfers only on the rising edge where <code>VALID && READY</code> are both high.</li>
+      <li><code>VALID</code> must stay asserted until the handshake completes; <code>READY</code> may change at any time.</li>
+      <li><code>RDATA</code> accompanies <code>RVALID</code>; <code>WDATA/WSTRB</code> accompany <code>WVALID</code>; <code>WLAST</code> marks the last beat.</li>
+      <li>Snoop traffic (AC/CR/CD) runs in parallel with the data channels.</li>
     </ul>
-  </div>
+  </div>`;
 
-  <div class="note"><b>下一节</b>：<a href="#/writeunique">WriteUnique 详解</a>（含与 CHI 的对照）。</div>`;
-
-  S.writeunique = () => `<h1>WriteUnique 事务流程（ACE）</h1>
+  S.writeunique = () => `<h1>WriteUnique</h1>
   <div class="card">
-    <h3>语义</h3>
-    <p><b>WriteUnique</b>：主设备对一行做<b>独占写</b>。写入前互连必须通过监听把其他缓存里的该行副本<b>全部失效</b>，从而拿到独占权 —— 对应 CHI 的 <code>WriteUniquePtl</code>。它通过 <code>AW</code> 通道携带 <code>AWSNOOP=WriteUnique</code> 发起。</p>
+    <h3>Semantics</h3>
+    <p><b>WriteUnique</b> is an <b>exclusive write</b>: before writing, the interconnect must snoop every other cache to invalidate its copy, so the requester obtains exclusivity — the ACE analogue of CHI's <code>WriteUniquePtl</code>. It is issued on <code>AW</code> with <code>AWSNOOP=WriteUnique</code>. WriteUnique is write-through/no-allocate; its full-line sibling <code>WriteLineUnique</code> allocates the line Unique.</p>
   </div>
   <div class="diagram">${writeUniqueSVG()}</div>
   <div class="card">
-    <h3>步骤解析（对应上图编号）</h3>
+    <h3>Steps</h3>
     <ol>
-      <li><b>发起请求</b>：RN 在 <code>AW</code> 通道置 <code>AWVALID</code>，给出 <code>AWADDR</code> + <code>AWSNOOP=WriteUnique</code> + <code>AWCACHE</code> 等；ICN 以 <code>AWREADY</code> 接收。</li>
-      <li><b>一致性监听</b>：ICN 在 <code>AC</code> 通道向其他缓存主机发 <code>ACSNOOP=MakeInvalid</code>（或 CleanInvalid），要求使其副本失效。</li>
-      <li><b>监听响应</b>：Peer 在 <code>CR</code> 通道回 <code>CRRESP=PassClean/PassDirty/Fail</code>；若持有脏行，同时用 <code>CD</code> 通道回写脏数据。</li>
-      <li><b>写数据</b>：RN 在 <code>W</code> 通道发 <code>WDATA/WSTRB/WLAST</code>（可与监听并行流水）。</li>
-      <li><b>写入内存</b>：ICN 合并脏回写与本次写数据后，以 <code>WriteNoSnoop</code> 写下游内存。</li>
-      <li><b>内存响应</b>：内存返回 <code>BVALID/BRESP=OKAY</code>。</li>
-      <li><b>完成</b>：ICN 向 RN 回 <code>BVALID/BRESP=OKAY + WACK</code>，RN 释放事务资源 —— 全局一致点达成。</li>
+      <li><b>Request</b>: RN asserts <code>AWVALID</code> with <code>AWADDR</code> + <code>AWSNOOP=WriteUnique</code> + <code>AWCACHE</code>; ICN accepts with <code>AWREADY</code>.</li>
+      <li><b>Coherence snoop</b>: ICN issues <code>ACSNOOP=MakeInvalid</code> (or CleanInvalid) to the other cache masters.</li>
+      <li><b>Snoop response</b>: the peer replies on <code>CR</code> with <code>CRRESP</code>; if it holds the dirty line it also returns it on <code>CD</code>.</li>
+      <li><b>Write data</b>: RN sends <code>WDATA/WSTRB/WLAST</code> on W (pipelined with the snoop).</li>
+      <li><b>Write to memory</b>: ICN merges the dirty writeback with the write and issues <code>WriteNoSnoop</code> downstream.</li>
+      <li><b>Memory response</b>: memory returns <code>BVALID/BRESP=OKAY</code>.</li>
+      <li><b>Completion</b>: ICN returns <code>BVALID/BRESP=OKAY + WACK</code> to RN, which releases the transaction.</li>
     </ol>
   </div>
   <div class="card">
-    <h3>ACE 与 CHI 对照</h3>
+    <h3>ACE vs CHI</h3>
     <table>
-      <tr><th>概念</th><th>AMBA ACE（本站）</th><th>AMBA CHI</th></tr>
-      <tr><td>传输层</td><td>AXI4 通道（AW/W/B/AR/R）+ AC/CR/CD</td><td>报文 flit（REQ/RSP/DAT/SNP）</td></tr>
-      <tr><td>独占写事务</td><td><code>AWSNOOP=WriteUnique</code></td><td><code>WriteUniquePtl</code></td></tr>
-      <tr><td>缓冲分配响应</td><td>—（无此概念）</td><td><code>DBIDResp</code></td></tr>
-      <tr><td>失效监听</td><td><code>ACSNOOP=MakeInvalid</code></td><td><code>SnpCleanInvalid</code></td></tr>
-      <tr><td>写数据</td><td><code>W</code> 通道</td><td><code>NCBWrData</code></td></tr>
-      <tr><td>完成</td><td><code>B + WACK</code></td><td><code>Comp</code> / <code>CompDBIDResp</code></td></tr>
+      <tr><th>Concept</th><th>AMBA ACE</th><th>AMBA CHI</th></tr>
+      <tr><td>Transport</td><td>AXI4 channels (AW/W/B/AR/R) + AC/CR/CD</td><td>Packet/flit transport (REQ/RSP/DAT/SNP)</td></tr>
+      <tr><td>Exclusive write</td><td><code>AWSNOOP=WriteUnique</code></td><td><code>WriteUniquePtl</code></td></tr>
+      <tr><td>Buffer grant</td><td>—</td><td><code>DBIDResp</code></td></tr>
+      <tr><td>Invalidating snoop</td><td><code>ACSNOOP=MakeInvalid</code></td><td><code>SnpCleanInvalid</code></td></tr>
+      <tr><td>Write data</td><td><code>W</code> channel</td><td><code>NCBWrData</code></td></tr>
+      <tr><td>Completion</td><td><code>B + WACK</code></td><td><code>Comp</code> / <code>CompDBIDResp</code></td></tr>
     </table>
-    <h3>附：CHI 版流程（WriteUniquePtl）</h3>
-    <p>以下是同一流程的 CHI 时序（报文名与上表一致，仅做可视化）：</p>
+    <h3>The CHI flow (WriteUniquePtl)</h3>
     <div class="diagram">${seqSVG(
       ["RN","HN (Home)","SN","Peer RN"],
       [
-        [0,1,"WriteUniquePtl","写地址 + 控制信息"],
-        [1,0,"DBIDResp","数据缓冲 ID 分配完成"],
-        [1,3,"SnpCleanInvalid","要求其他缓存失效"],
-        [3,1,"SnpResp","SnpResp_I / SnpRespData_I_PD（脏则带回写）"],
-        [0,1,"NCBWrData","写数据"],
-        [1,2,"WriteNoSnp","合并后的数据写从节点"],
-        [2,1,"CompDBIDResp","写完成响应"],
-        [1,0,"Comp","全局完成"]
+        [0,1,"WriteUniquePtl","write address + control"],
+        [1,0,"DBIDResp","data-buffer ID granted"],
+        [1,3,"SnpCleanInvalid","invalidate other caches"],
+        [3,1,"SnpResp","SnpResp_I / SnpRespData_I_PD"],
+        [0,1,"NCBWrData","write data"],
+        [1,2,"WriteNoSnp","merged data to subordinate"],
+        [2,1,"CompDBIDResp","write-complete response"],
+        [1,0,"Comp","global completion"]
       ],
-      { title:"AMBA CHI — WriteUniquePtl（可视化对照）", h:560, w:820 }
+      { title:"AMBA CHI — WriteUniquePtl", h:560, w:820 }
     )}</div>
-    <p>对照可见两条主线：<b>ACE 用通道握手 + 监听（AC/CR/CD），CHI 用报文 + 分离响应（DBIDResp/Comp）</b>；「先使其他副本失效、再独占写入」这一语义在两者中完全一致。</p>
+    <p><b>ACE uses channel handshakes + snoop (AC/CR/CD); CHI uses messages + split responses (DBIDResp/Comp)</b>. The "invalidate other copies, then write exclusively" semantics are identical.</p>
   </div>`;
 
-  S.c910 = () => `<h1>C910 具体实现与 RTL 解读</h1>
-  <p class="lead">玄铁 C910（T-Head XuanTie C910）是开源的 RISC-V 64 位多核处理器。它最有价值的一点：<b>对外暴露的是普通 AXI4-128 主口，而 ACE 一致性发生在芯片内部</b>（core↔CIU↔L2 之间）。这一章按「架构 → 一致性通路 → 具体 RTL 文件」逐层解读。</p>
+  S.c910 = () => `<h1>C910 Implementation and RTL Walkthrough</h1>
 
-  <h2>1. C910MP 集群架构（openc910 实际结构）</h2>
+  <h2>1. The C910MP cluster (as shipped in openc910)</h2>
   <div class="card">
-    <p>开源的 <code>openc910</code> 仓库是一个 <b>2 核集群（C910MP）</b>：</p>
+    <p>The open-source <code>openc910</code> repository is a <b>two-core cluster (C910MP)</b>:</p>
     <div class="diagram">${c910SVG()}</div>
     <ul>
-      <li><code>openC910.v</code> 例化 2 个核 <code>ct_top x0/x1</code>、1 个 <code>ct_ciu_top</code>（CIU，一致性互连单元）、1 个 <code>ct_l2c_top</code>（共享 L2）。</li>
-      <li><b>L1</b>：64KB 指令 + 64KB 数据，2 路组相联，64B 行。</li>
-      <li><b>CIU</b>：核心之间的一致性点，含 snoop 缓冲与地址缓冲。</li>
-      <li><b>L2</b>：1MB、16 路、2 个子 bank（各 512KB），64B 行，<b>inclusive</b>（含 L1 内容），带预取。</li>
-      <li><b>对外</b>：仅 AXI4-128 主口（AR/W/B/AW/R）+ ACE-Lite 低功耗信号（CACTIVE/CSYSACK/CSYSREQ），<b>没有对外 ACE 监听口</b>。</li>
+      <li><code>openC910.v</code> instantiates two cores <code>ct_top x0/x1</code>, one <code>ct_ciu_top</code> (CIU, Coherence Interconnect Unit), and one <code>ct_l2c_top</code> (shared L2).</li>
+      <li><b>L1</b>: 64 KB instruction + 64 KB data, 2-way, 64 B line.</li>
+      <li><b>CIU</b>: the point of coherence between cores, with snoop buffers.</li>
+      <li><b>L2</b>: 1 MB, 16-way, two sub-banks (512 KB each), 64 B line, inclusive, with prefetch.</li>
+      <li><b>External</b>: a plain AXI4-128 master plus the ACE-Lite low-power signals; <b>no external ACE snoop port</b>.</li>
     </ul>
-    <div class="note warn"><b>关键结论（已从 RTL + 手册核实）</b>：openc910 的一致性协议是 <b>MOESI</b>（L1 为 MESI、L2 为 MOESI），并且 ACE 的监听信号（ARSNOOP/AWSNOOP/AWUNIQUE/ARDOMAIN/AWDOMAIN + AC/CR/CD 通道）出现在 <b>core 的 BIU 与 CIU 之间</b>；而 SoC 顶层对外只接普通 AXI4。因此「C910 的 ACE」讲的是<b>内部一致性互连</b>，不是对外总线。</div>
+    <div class="note warn"><b>Key conclusion (verified against RTL + manuals)</b>: openc910's coherence protocol is <b>MOESI</b> (MESI in L1, MOESI in L2), and the ACE snoop signals appear <b>between the core BIU and the CIU</b>; the SoC top-level exposes only plain AXI4.</div>
   </div>
 
-  <h2>2. 一致性通路：core ↔ CIU ↔ L2</h2>
+  <h2>2. The coherence path: core ↔ CIU ↔ L2</h2>
   <div class="card">
     <table>
-      <tr><th>层次</th><th>模块</th><th>一致性角色</th></tr>
-      <tr><td>L1（每核）</td><td><code>ct_lsu_top</code> / <code>ct_lsu_dcache_top</code></td><td>维护 D 缓存 MOESI 状态；接收/发起 snoop</td></tr>
-      <tr><td>核总线接口</td><td><code>biu/rtl/ct_biu_top.v</code> 及 <code>ct_biu_snoop_channel.v</code> / <code>read_channel</code> / <code>write_channel</code></td><td>把核的访存转成 ACE 风格事务，带 <code>arsnoop/awsnoop/awunique/ardomain/awdomain</code></td></tr>
-      <tr><td>一致性互连</td><td><code>ciu/rtl/ct_ciu_top.v</code> + <code>ct_ciu_snb*.v</code>（snoop buffer）</td><td>仲裁、把一致性请求定向/广播成 AC 监听，收 CR/CD 响应</td></tr>
-      <tr><td>共享 L2</td><td><code>l2c/rtl/ct_l2c_top.v</code> + <code>ct_l2c_icc.v</code>（cache-coherence control）+ <code>ct_l2c_sub_bank.v</code></td><td>MOESI 目录/状态、脏行回写、inclusive 维护</td></tr>
-      <tr><td>对外</td><td><code>ciu/rtl/ct_ebiu_*.v</code>（external BIU，含 <code>ct_ebiu_snoop_channel_dummy.v</code>）</td><td>把内部事务转换成普通 AXI4-128；dummy snoop 通道证明「对外无 snoop」</td></tr>
+      <tr><th>Level</th><th>Module</th><th>Coherence role</th></tr>
+      <tr><td>L1 (per core)</td><td><code>ct_lsu_top</code> / <code>ct_lsu_dcache_top</code></td><td>Maintains D-cache MOESI state; issues and answers snoops</td></tr>
+      <tr><td>Core bus interface</td><td><code>biu/rtl/ct_biu_top.v</code> + <code>ct_biu_snoop_channel.v</code></td><td>Turns core accesses into ACE-style transactions</td></tr>
+      <tr><td>Coherent interconnect</td><td><code>ciu/rtl/ct_ciu_top.v</code> + <code>ct_ciu_snb*.v</code></td><td>Arbitrates; issues AC snoops; collects CR/CD responses</td></tr>
+      <tr><td>Shared L2</td><td><code>l2c/rtl/ct_l2c_top.v</code> + <code>ct_l2c_icc.v</code></td><td>MOESI state, dirty writeback, inclusive maintenance</td></tr>
+      <tr><td>External</td><td><code>ciu/rtl/ct_ebiu_*.v</code></td><td>Converts internal transactions into plain AXI4-128</td></tr>
     </table>
-    <p>概括而言：<b>一致性被封装在 CIU 内部</b>——CIU 之上为 ACE 风格监听，CIU 之下（L2 出口）转为非一致 AXI4。这正是 ACE 将一致性域封装于互连内部的典型实现方式。</p>
+    <p><b>Coherence is enclosed within the CIU</b> — above it is ACE-style snooping, below it (at the L2 egress) the traffic becomes non-coherent AXI4.</p>
   </div>
 
-  <h2>3. RTL 走读：关键文件与要点</h2>
+  <h2>3. RTL walkthrough: key files</h2>
   <div class="card">
-    <p>仓库根为 <code>C910_RTL_FACTORY/gen_rtl/</code>，以下为走读主线（模块名均已在仓库中核实存在）：</p>
-    <h3>3.1 核总线接口 BIU（ACE 信号所在层）</h3>
+    <p>The repository root is <code>C910_RTL_FACTORY/gen_rtl/</code>:</p>
+    <h3>3.1 Core bus interface (BIU)</h3>
     <ul>
-      <li><code>biu/rtl/ct_biu_top.v</code>：核的总线出口，<code>_arsnoop[3:0] / _awsnoop[2:0] / _awunique / _ardomain[1:0] / _awdomain[1:0]</code> —— 位宽与 AMBA ACE 完全一致（ARSNOOP 4b、AWSNOOP 3b、AWUNIQUE 1b、DOMAIN 2b）。</li>
-      <li><code>ct_biu_snoop_channel.v</code>：<code>acaddr/acprot/acsnoop/acvalid/acready</code> 监听地址通道。</li>
-      <li><code>ct_biu_read_channel.v / ct_biu_write_channel.v / ct_biu_req_arbiter.v</code>：读写请求与仲裁。</li>
+      <li><code>biu/rtl/ct_biu_top.v</code> — carries <code>_arsnoop[3:0] / _awsnoop[2:0] / _awunique / _ardomain[1:0] / _awdomain[1:0]</code>, matching AMBA ACE widths.</li>
+      <li><code>ct_biu_snoop_channel.v</code> — the snoop address channel (<code>acaddr/acprot/acsnoop/acvalid/acready</code>).</li>
+      <li><code>ct_biu_read_channel.v / ct_biu_write_channel.v / ct_biu_req_arbiter.v</code>.</li>
     </ul>
-    <h3>3.2 CIU（一致性互连 + snoop 缓冲）</h3>
+    <h3>3.2 CIU</h3>
     <ul>
-      <li><code>ciu/rtl/ct_ciu_top.v</code>：CIU 顶层。</li>
-      <li><code>ct_ciu_snb.v / ct_ciu_snb_arb.v / ct_ciu_snb_sab.v</code>：snoop buffer 与 snoop address buffer —— 处理被监听的地址队列。</li>
-      <li><code>ct_ciu_l2cif.v</code>：CIU↔L2 接口；<code>ct_ciu_ncq.v / ct_ciu_vb.v</code>：非缓存请求队列 / 写缓冲。</li>
-      <li><code>ct_ebiu_*.v</code>：外部 AXI4 转换；<code>ct_ebiu_snoop_channel_dummy.v</code> 是「对外无 snoop」的直接证据。</li>
+      <li><code>ciu/rtl/ct_ciu_top.v</code>; <code>ct_ciu_snb.v / ct_ciu_snb_arb.v / ct_ciu_snb_sab.v</code> (snoop buffers).</li>
+      <li><code>ct_ciu_l2cif.v</code>; <code>ct_ciu_ncq.v / ct_ciu_vb.v</code>.</li>
+      <li><code>ct_ebiu_*.v</code>; <code>ct_ebiu_snoop_channel_dummy.v</code> confirms no external snoop.</li>
     </ul>
-    <h3>3.3 L2（MOESI 状态机）</h3>
+    <h3>3.3 L2</h3>
     <ul>
-      <li><code>l2c/rtl/ct_l2c_top.v / ct_l2c_sub_bank.v</code>（两个子 bank）。</li>
-      <li><code>ct_l2c_icc.v</code>：L2 的一致性控制（MOESI 状态推进、inclusive 维护）。</li>
-      <li><code>ct_l2c_tag.v / ct_l2c_data.v / ct_l2c_wb.v / ct_l2c_prefetch.v</code>：标签/数据/回写/预取。</li>
+      <li><code>l2c/rtl/ct_l2c_top.v / ct_l2c_sub_bank.v</code>; <code>ct_l2c_icc.v</code> (cache-coherence control).</li>
+      <li><code>ct_l2c_tag.v / ct_l2c_data.v / ct_l2c_wb.v / ct_l2c_prefetch.v</code>.</li>
     </ul>
-    <h3>3.4 L1 数据缓存的 snoop 侧</h3>
+    <h3>3.4 L1 D-cache snoop side</h3>
     <ul>
-      <li><code>lsu/rtl/ct_lsu_snoop_snq.v(+entry) / ct_lsu_snoop_ctcq.v(+entry) / ct_lsu_snoop_req_arbiter.v / ct_lsu_snoop_resp.v</code>：L1 监听队列与响应。</li>
-      <li><code>ct_lsu_icc.v / ct_lsu_wmb.v / ct_lsu_bus_arb.v</code>：L1 一致性控制 / 写合并缓冲 / 总线仲裁。</li>
+      <li><code>lsu/rtl/ct_lsu_snoop_snq.v(+entry) / ct_lsu_snoop_ctcq.v(+entry) / ct_lsu_snoop_req_arbiter.v / ct_lsu_snoop_resp.v</code>.</li>
+      <li><code>ct_lsu_icc.v / ct_lsu_wmb.v / ct_lsu_bus_arb.v</code>.</li>
     </ul>
   </div>
 
-  <h2>4. 一个 WriteUnique 在 C910 内部如何走</h2>
+  <h2>4. A WriteUnique inside the C910</h2>
   <div class="card">
     <ol>
-      <li>核 0 要独占写一行 → BIU 在 <code>AW</code> 上给出 <code>AWSNOOP=WriteUnique</code>（3b 编码）。</li>
-      <li>CIU 收到后，向核 1 发 <code>AC</code> 监听（<code>ACSNOOP=MakeInvalid</code>），核 1 的 <code>ct_lsu_snoop_*</code> 查自己的 D 缓存。</li>
-      <li>核 1 经 <code>CR</code> 回 <code>PassClean</code>（干净）或经 <code>CD</code> 交出脏数据。</li>
-      <li>CIU 把该行标记为核 0 Unique，核 0 写数据；必要时 CIU 把合并结果经 <code>ct_ebiu_*</code> 转 AXI4 写回内存（对外就是一次普通 AXI 写，无 snoop）。</li>
+      <li>Core 0 wants to write a line exclusively → the BIU asserts <code>AWSNOOP=WriteUnique</code> on AW.</li>
+      <li>The CIU snoops core 1 on AC (<code>ACSNOOP=MakeInvalid</code>); core 1's <code>ct_lsu_snoop_*</code> checks its D-cache.</li>
+      <li>Core 1 replies on CR (<code>PassClean</code>) or returns dirty data on CD.</li>
+      <li>The CIU marks the line Unique for core 0; core 0 writes; if needed the CIU writes the merged result back to memory via <code>ct_ebiu_*</code>.</li>
     </ol>
-    <p>这正是本站 <a href="#/writeunique">WriteUnique</a> 时序图在 C910 内部逻辑上的具体落地。</p>
   </div>
 
-  <div class="note"><b>适用范围说明</b>：开源的 openC910 固定为 2 核 + 对外 AXI4；<b>多簇（如 TH1520 的 4 核）跨簇一致性不在此开源 RTL 内</b>。本页核对了 ACE 信号位宽与 AMBA ACE 一致，但未逐一复推每条 snoop 事务的 ARM 规范编码 —— C910 用户手册明确「参考 AMBA AXI/ACE Protocol Specification」。</div>
-  <p class="lead" style="margin-top:16px">参考：<a href="https://github.com/T-head-Semi/openc910">github.com/T-head-Semi/openc910</a>（<code>C910_RTL_FACTORY/gen_rtl/</code>）、TH1520 论文 arXiv:2311.12808。</p>`;
+  <div class="note"><b>Scope</b>: the open-source openC910 is fixed at two cores + external AXI4; <b>cross-cluster coherence (e.g. the four-core TH1520) is not present in this open RTL</b>. The ACE signal widths match AMBA ACE, but the per-snoop ARM-spec encodings were not re-derived; the C910 user manual references the AMBA AXI and ACE Protocol Specification.</div>
+  <p>Reference: <a href="https://github.com/T-head-Semi/openc910">github.com/T-head-Semi/openc910</a>, TH1520 paper arXiv:2311.12808.</p>`;
 
-  S.formal = () => `<h1>ACE 协议形式验证论文精讲</h1>
-  <p class="lead">这一章综述「用形式方法验证 ACE」的文献，精选 3 篇讲解，再给相关方向与工业现状。结论：<b>ACE 的学术形式验证基本是一个小组（INRIA/Verimag，CADP 工具链）的高质量成果 + 工业断言 VIP</b>，可复现、可引用的核心就那几篇。</p>
+  S.formal = () => `<h1>Formal Verification of ACE</h1>
 
-  <h2>文献格局：两类问题</h2>
+  <h2>1. Formal Analysis of the ACE Specification (FMICS 2013)</h2>
   <div class="card">
-    <ul>
-      <li><b>验证协议规范本身</b>：ACE 的通道组合会不会死锁？规范里隐含的全局排序、一致性点（coherency point）要求是否成立？</li>
-      <li><b>验证用 ACE 实现出来的具体 SoC</b>：数据一致性、死锁、顺序是否满足规范。</li>
-    </ul>
-    <p>前者是「把一篇散文规格变成可机器检查的模型」，后者是「拿这个模型当裁判去查实现」。</p>
+    <p><b>Formal Analysis of the ACE Specification for Cache Coherent Systems-on-Chip</b> — A. Kriouile, W. Serwe (INRIA / Verimag &amp; LIG), FMICS 2013, LNCS 8137, DOI <code>10.1007/978-3-642-41010-9_8</code>. <a href="https://inria.hal.science/hal-00858521v1">hal</a> · <a href="http://cadp.inria.fr/case-studies/13-e-ace.html">case study</a></p>
+    <h3>What it verifies</h3>
+    <p>The ACE <b>specification</b>: deadlock/livelock freedom of the channel combination; the global-ordering requirements; the coherent snoop (AC/CR) path.</p>
+    <h3>Method</h3>
+    <p>The ACE text is translated into <b>LNT</b> (CADP toolbox) and model-checked with CADP's <b>Evaluator / MCL</b> (modal μ-calculus). The protocol is modelled as concurrent agents (masters + a single coherency point) over the AXI + AC + CR + DVM channels.</p>
+    <h3>Key insight</h3>
+    <p>Decompose ACE into its named channels plus a single coherency point, so ordering constraints can be stated precisely; build a configuration-independent reference model parameterized by the number of agents.</p>
+    <h3>Result</h3>
+    <p>A naive reading of ACE is <b>not automatically deadlock-free</b>; the contribution is making the implied ordering/coherency-point requirements explicit and checkable.</p>
   </div>
 
-  <h2>🏆 论文一：ACE 规范本身的形式分析（FMICS 2013）</h2>
+  <h2>2. Using the Formal Model on a Real SoC (TACAS 2015)</h2>
   <div class="card">
-    <p><b>Formal Analysis of the ACE Specification for Cache Coherent Systems-on-Chip</b> — A. Kriouile, W. Serwe（INRIA / Verimag &amp; LIG），FMICS 2013，LNCS 8137，DOI <code>10.1007/978-3-642-41010-9_8</code>。论文：<a href="https://inria.hal.science/hal-00858521v1">inria.hal.science/hal-00858521v1</a> · 案例：<a href="http://cadp.inria.fr/case-studies/13-e-ace.html">cadp.inria.fr ACE case study</a></p>
-    <h3>验证什么</h3>
-    <p>ACE <b>规范本身</b>：(i) 通道组合的死锁/活锁；(ii) 事务间的<b>全局排序要求</b>（互连上 ACE 假设的、通道机制隐含的顺序）；(iii) 一致性监听（AC/CR）路径的序/一致性。</p>
-    <h3>方法（核心）</h3>
-    <p>把非形式化的 AMBA ACE 文本，手工翻译成 <b>LNT</b>（CADP 工具链的过程代数语言），再用 CADP 的 <b>Evaluator / MCL</b>（模态 μ 演算）做模型检查。把协议建模成「主设备 + 单一监听/一致性点」在 AXI + AC + CR + DVM 通道上通信的<b>并发 agent</b>，每个通道刻画消息类型与排序保证。</p>
-    <h3>关键洞察</h3>
-    <p>① 把 ACE <b>按命名通道分解 + 一个一致性点</b>，排序约束才能被精确陈述；② 构造<b>与配置无关、按 agent 数参数化</b>的参考模型，将 ACE 的「公理」直接编码其中 —— 由此同一模型可适用于 1 核至 N 核的拓扑。</p>
-    <h3>结果</h3>
-    <p>模型检查揭示：按朴素读法，ACE 规范<b>并非自动无死锁</b>—— 某些看似允许的顺序会走到死锁态。贡献不是「ACE 有 bug」，而是<b>把隐含的全局排序/一致性点要求显式化、可检查化</b>。</p>
+    <p><b>Using a Formal Model to Improve Verification of a Cache-Coherent System-on-Chip</b> — A. Kriouile, W. Serwe, TACAS 2015, LNCS 9035, DOI <code>10.1007/978-3-662-46681-0_62</code>. <a href="https://rd.springer.com/chapter/10.1007/978-3-662-46681-0_62">springer</a></p>
+    <h3>What it verifies</h3>
+    <p>Data integrity / coherence, deadlock-freedom, and ordering of a <b>real cache-coherent SoC design</b> against the formal ACE model.</p>
+    <h3>Method</h3>
+    <p>The FMICS'13 model is used as a <b>reference oracle</b>; the design is abstracted and compared component-wise using <b>compositional verification</b> (CADP).</p>
+    <h3>Key insight</h3>
+    <p>Compositional reasoning plus a formal reference model: verify each component against abstract assumed behavior, then compose.</p>
+    <h3>Result</h3>
+    <p>A formal protocol reference model measurably improves verification quality (more corner-case coverage, earlier detection of coherence/ordering violations).</p>
   </div>
 
-  <h2>🏆 论文二：拿形式模型去查真实 SoC（TACAS 2015）</h2>
+  <h2>3. ADVOCAT: automated cross-layer deadlock verification (DATE 2016)</h2>
   <div class="card">
-    <p><b>Using a Formal Model to Improve Verification of a Cache-Coherent System-on-Chip</b> — A. Kriouile, W. Serwe，TACAS 2015，LNCS 9035，DOI <code>10.1007/978-3-662-46681-0_62</code>。<a href="https://rd.springer.com/chapter/10.1007/978-3-662-46681-0_62">springer</a> · <a href="https://inria.hal.science/hal-01104747v1">hal</a></p>
-    <h3>验证什么</h3>
-    <p>一个<b>真实缓存一致 SoC 设计</b>的数据完整性/一致性、无死锁、顺序 —— 也就是「这个实现的一致性逻辑是否符合 ACE 模型」。</p>
-    <h3>方法（核心）</h3>
-    <p>把论文一的 ACE 形式模型当作<b>高层参考模型 / 规格 oracle</b>；对被验设计做抽象，用 <b>compositional（组合式）验证</b>（CADP）逐组件对照参考模型。性质集合<b>从参考模型导出</b>，而不是临时手写。</p>
-    <h3>关键洞察</h3>
-    <p><b>组合式推理 + 形式参考模型当 oracle</b>：不可能全 SoC 穷举，就每个组件对照抽象假设行为分别验证再组合；模型提供正确性判据，努力集中在「设计偏离模型的点」——状态空间比全系统穷举小得多。</p>
-    <h3>结果</h3>
-    <p>证明「形式协议参考模型」能<b>可度量地提升验证质量</b>（覆盖更多角点交错、更早发现一致性/顺序违例）。这是 ACE 计划的「落地」半篇。</p>
+    <p><b>ADVOCAT: Automated deadlock verification for on-chip cache coherence and interconnects</b> — F. Verbeek, P. M. Yaghini, A. Eghbal, N. Bagherzadeh, DATE 2016, DOI <code>10.5555/2971808.2972190</code>; journal extension <b>IEEE Trans. Computers</b> DOI <code>10.1109/TC.2016.2584060</code>. <a href="https://dl.acm.org/doi/10.5555/2971808.2972190">acm</a></p>
+    <h3>What it verifies</h3>
+    <p><b>Deadlock</b> in coherent on-chip interconnects, treated <b>cross-layer</b>: the coherence protocol plus the underlying NoC buffering/ordering.</p>
+    <h3>Method</h3>
+    <p>Model the protocol as message types with sender/receiver/buffer dependencies, and check for a reachable state with no enabled transition (deadlock), framed as <b>wait-for dependency-cycle detection</b> and solved with SAT/SMT.</p>
+    <h3>Key insight</h3>
+    <p>Deadlock is a cross-layer dependency-cycle phenomenon: a protocol can be deadlock-free on an ideal interconnect yet deadlock on a real buffered NoC.</p>
+    <h3>Result</h3>
+    <p>Found real deadlocks in published protocol configurations, missed by standard checkers or visible only with NoC buffering. Limits: abstracts data values, scalability depends on the SMT encoding.</p>
   </div>
 
-  <h2>🏆 论文三：跨层死锁自动化检测 ADVOCAT（DATE 2016）</h2>
-  <div class="card">
-    <p><b>ADVOCAT: Automated deadlock verification for on-chip cache coherence and interconnects</b> — F. Verbeek, P. M. Yaghini, A. Eghbal, N. Bagherzadeh，DATE 2016，DOI <code>10.5555/2971808.2972190</code>；期刊扩展 <b>IEEE Trans. Computers</b> DOI <code>10.1109/TC.2016.2584060</code>。<a href="https://dl.acm.org/doi/10.5555/2971808.2972190">acm</a> · <a href="https://www.cs.ru.nl/~freekver/ADVOCAT/">项目页</a></p>
-    <h3>验证什么</h3>
-    <p>缓存一致片上互连里的<b>死锁</b>，且按<b>跨层</b>处理：一致性协议（消息类型、缓冲）与底层 NoC/路由（缓冲、顺序、通道）的相互作用 —— 正是 ACE/CHI 所生活的协议类。</p>
-    <h3>方法（核心）</h3>
-    <p>给定「消息类型 + 收发方 + 缓冲依赖」描述的协议，检查状态图能否到达<b>无使能转移</b>（死锁）态；把问题建模成 <b>等待依赖环检测 / 可达性</b>，用 <b>SAT/SMT</b>（Z3 一族）求解，而非枚举状态；可选有界以控制规模。</p>
-    <h3>关键洞察</h3>
-    <p><b>死锁是跨层的依赖环现象</b>：协议在理想互连上无死锁，在真实有缓冲/有限信用的 NoC 上却可能死锁（反之亦然）。显式建模消息传递依赖图、找环，使死锁检测<b>自动化、配置驱动</b>（不用每个协议手写不变量）。</p>
-    <h3>结果</h3>
-    <p>在已发表的协议配置里检出真实死锁 bug（被标准检查器漏掉、或只有计入 NoC 顺序/缓冲才出现）。局限：抽象掉数据值（只看控制/流死锁），规模受 SMT 编码/界限制。</p>
-  </div>
-
-  <h2>相关方向与工业现状</h2>
+  <h2>Related work and industrial practice</h2>
   <div class="card">
     <table>
-      <tr><th>方向</th><th>代表工作</th><th>要点</th></tr>
-      <tr><td>AMBA AXI/AHB 早期形式化</td><td>Roychoudhury &amp; Mitra，DATE 2003（对 AMBA 总线进行模型检查并发现缺陷）</td><td>ACE 类总线形式验证的经典先例</td></tr>
-      <tr><td>AMBA 在 HOL 里建模</td><td>Cambridge <a href="https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-602.html">UCAM-CL-TR-602</a>（2004）</td><td>定理证明路线</td></tr>
-      <tr><td>现代相干后继</td><td><a href="https://arxiv.org/abs/2410.15908">Formalising CXL Cache Coherence</a>（ASPLOS 2025）</td><td>CXL.cachemem（源自 CHI）的规范形式化 + 模型检查</td></tr>
-      <tr><td>RISC-V 生态</td><td>TileLink 一致性 Murphi 模型检查（ICCD 2023）</td><td>显式状态模型检查的现代范本</td></tr>
-      <tr><td>工业断言 VIP</td><td>Cadence / Oski / SmartDV 的 ARM ACE 形式 VIP</td><td>覆盖死锁/顺序/snoop 完整性，但<b>非同行评审</b></td></tr>
+      <tr><th>Direction</th><th>Representative work</th></tr>
+      <tr><td>Early AMBA AXI/AHB formalization</td><td>Roychoudhury &amp; Mitra, DATE 2003</td></tr>
+      <tr><td>AMBA in HOL</td><td>Cambridge <a href="https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-602.html">UCAM-CL-TR-602</a> (2004)</td></tr>
+      <tr><td>Modern coherent successor</td><td><a href="https://arxiv.org/abs/2410.15908">Formalising CXL Cache Coherence</a> (ASPLOS 2025)</td></tr>
+      <tr><td>RISC-V ecosystem</td><td>TileLink coherence Murphi model checking (ICCD 2023)</td></tr>
+      <tr><td>Industrial assertion VIP</td><td>Cadence / Oski / SmartDV ARM ACE formal VIP (not peer-reviewed)</td></tr>
     </table>
   </div>
 
-  <h2>方法论总结</h2>
+  <h2>Methodology summary</h2>
   <div class="card">
     <ul>
-      <li><b>首先形式化「规范」</b>：将 ACE 分解为命名通道与单一一致性点，用 LNT/CADP（或等价的进程代数）建立<b>参数化参考模型</b> —— 这是可复用、可扩展的核心。</li>
-      <li><b>再拿模型查「实现」</b>：组合式验证 + 参考模型当 oracle，把精力放在「实现偏离模型」的点。</li>
-      <li><b>死锁单独拆出来查</b>：用依赖环 + SAT/SMT 的自动化方法（ADVOCAT 思路），尤其要<b>连同底层 NoC 缓冲/顺序一起</b>建模，不能只看协议层。</li>
-      <li><b>snoop filter 的正确性</b>没有独立强学术论文 —— 它被并入「一致性点/AC 通道排序模型」，或交给工业断言 VIP；撰写材料时不宜引用并不存在的「snoop filter 最佳论文」。</li>
+      <li><b>Formalize the specification first</b>: decompose ACE into named channels + a single coherency point, and build a parameterized reference model.</li>
+      <li><b>Then check the implementation</b>: compositional verification with the reference model as oracle.</li>
+      <li><b>Treat deadlock separately</b>: dependency-cycle + SAT/SMT automation, modelling the underlying NoC buffering.</li>
+      <li><b>Snoop-filter correctness</b> has no strong standalone academic paper — it is folded into the coherency-point / AC-ordering model or delegated to industrial assertion VIPs.</li>
     </ul>
-  </div>
-
-  <div class="note"><b>引用的严谨性</b>：论文一/二/三的书目信息已核对（DOI 见上）。相关工作中的次要作者名单与 ADVOCAT 的精确求解器，建议在正式引用前按链接再核一遍。</div>`;
+  </div>`;
 
   /* ---------------- router ---------------- */
   const ROUTES = ["overview","principles","protocol","signals","transactions","timing","writeunique","c910","formal"];

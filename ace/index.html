@@ -1,20 +1,20 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AMBA ACE 协议学习站 · AMBA ACE Protocol Reference（原理 / 信号 / 时序 / C910 实现 / 形式验证）</title>
-<meta name="description" content="AMBA ACE（AXI Coherency Extensions）协议学习站：原理、通道与信号、访问分类、事务时序图、玄铁 C910 具体实现与 RTL 解读、WriteUnique 事务流程，以及 ACE 协议形式验证论文精讲。">
+<title>AMBA ACE Protocol Reference — Principles · Signals · Timing · C910 RTL · Formal Verification</title>
+<meta name="description" content="AMBA ACE (AXI Coherency Extensions) protocol reference: coherence principles, channels and signals, transaction classification, timing diagrams, the Xuantie C910 implementation and RTL walkthrough, the WriteUnique transaction flow, and a survey of formal verification of ACE.">
 <meta name="robots" content="index, follow">
-<link rel="stylesheet" href="css/ace.css?v=20240890">
+<link rel="stylesheet" href="css/ace.css?v=20240891">
 </head>
 <body>
-<header class="topbar">
+<aside class="sidebar">
   <div class="brand">
     <span class="logo">AC</span>
     <div class="brand-text">
       <strong>AMBA ACE Protocol</strong>
-      <small>Coherency · Channels · Timing · C910 RTL</small>
+      <small>Coherency · Signals · C910 RTL</small>
     </div>
   </div>
   <nav class="nav" id="nav">
@@ -28,15 +28,16 @@
     <a href="#/c910" data-nav="c910">C910 RTL</a>
     <a href="#/formal" data-nav="formal">Formal Verification</a>
   </nav>
-  <a class="back" href="../">← RISC-V 指令文档</a>
-</header>
+  <a class="back" href="../">← RISC-V Reference</a>
+</aside>
 
-<main id="app" class="app"></main>
+<div class="main">
+  <main id="app" class="app"></main>
+  <footer class="footer">
+    <p>AMBA ACE protocol reference — links back to the <a href="../">RISC-V instruction document</a>.</p>
+  </footer>
+</div>
 
-<footer class="footer">
-  <p>AMBA ACE learning reference — links back to the <a href="../">RISC-V instruction document</a>.</p>
-</footer>
-
-<script src="js/ace.js?v=20240890"></script>
+<script src="js/ace.js?v=20240891"></script>
 </body>
 </html>
