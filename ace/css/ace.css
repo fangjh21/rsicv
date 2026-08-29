@@ -21,7 +21,8 @@ a:hover{text-decoration:underline}
 .nav a{display:block;padding:8px 12px;border-radius:7px;color:var(--ink);font-size:13.5px}
 .nav a:hover{background:var(--soft);text-decoration:none}
 .nav a.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
-.back{margin-top:auto;padding-top:14px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.side-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.back{font-size:13px;color:var(--muted)}
 
 .main{flex:1;min-width:0}
 .app{max-width:920px;margin:0 auto;padding:26px 26px 60px}

@@ -333,6 +333,7 @@
     document.getElementById('brandSub').textContent = z ? "一致性 · C910 RTL" : "Coherency · C910 RTL";
     document.getElementById('langBtn').textContent = z ? "EN" : "中文";
     document.getElementById('backLink').textContent = z ? "← RISC-V 指令文档" : "← RISC-V Reference";
+    const hk=document.getElementById('homeLink'); if(hk) hk.textContent = z ? "← 个人主页" : "← Homepage";
     document.querySelectorAll('#nav a').forEach(a => { a.textContent = (NAV[a.dataset.nav]||['',''])[z?0:1]; });
   }
   function route(){

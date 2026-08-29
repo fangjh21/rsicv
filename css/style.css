@@ -38,7 +38,8 @@ body{display:flex;min-height:100vh}
 .top-search{margin:12px 0 0}
 .top-search input{width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:13.5px;outline:none}
 .top-search input:focus{border-color:var(--accent)}
-.ext{margin-top:auto;padding:12px 6px 0;border-top:1px solid var(--line);font-size:13px;color:var(--accent)}
+.ext-group{margin-top:auto;padding-top:12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:9px}
+.ext{font-size:13px;color:var(--accent)}
 .ext:hover{text-decoration:none;opacity:.8}
 
 .main{flex:1;min-width:0}
